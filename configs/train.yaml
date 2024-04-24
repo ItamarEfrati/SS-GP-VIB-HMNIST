@@ -1,7 +1,7 @@
 defaults:
   - _self_
-  - datamodule: mimic3
-  - model: mimic3/gpvib_e_cnn2d_d_flatten
+  - datamodule: hmnist/ss_hmnist
+  - model: hmnist/ss_gpvib_e_cnn1d_dl_flatten
   - trainer: gpu
   - logger: tensorboard
   - callbacks: default
@@ -22,7 +22,7 @@ optimized_metric: ${metrics.optimize}
 ckpt_path: null # path to checkpoint model
 
 # name of the run, should be used along with experiment mode
-datamodule_name: mimic3
-model_name: gpvib_e_cnn2d_d_flatten
+datamodule_name: hmnist
+model_name: ss_gpvib_e_cnn1d_dl_flatten
 
 

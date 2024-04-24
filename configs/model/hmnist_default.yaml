@@ -1,8 +1,8 @@
 optimizer:
   _target_: torch.optim.Adam
   _partial_: true
-  lr: -1
-  weight_decay: -1
+  lr: 0.001
+  weight_decay: 0.05
 
 scheduler:
   _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
@@ -17,8 +17,8 @@ scheduler:
 # vib
 num_classes: 10
 alpha: -1 # scaling factor for positive class weight
-beta: -1
-num_samples: -1
+beta: 0.01
+num_samples: 1
 class_weight_file:
 monitor_metric: ${callbacks.early_stopping.monitor} # for the scheduler
 use_class_weight: false
@@ -29,9 +29,9 @@ is_ensemble: False # always false
 
 # gp_vib
 kernel: cauchy
-sigma: -1
-length_scale: -1
-kernel_scales: -1
+sigma: 1
+length_scale: 1
+kernel_scales: 1
 
 
 

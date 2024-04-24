@@ -97,7 +97,7 @@ class BandedJointEncoder(Encoder):
 
     def __call__(self, statistics):
         batch_size = statistics.shape[0]
-        # statistics = torch.permute(statistics, dims=(0, 2, 1))
+        statistics = torch.permute(statistics, dims=(0, 2, 1))
         mu = statistics[:, :self.encoding_size]
         precision_parameters = statistics[:, self.encoding_size:]
 
