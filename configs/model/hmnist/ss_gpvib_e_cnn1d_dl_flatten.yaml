@@ -55,3 +55,6 @@ data_decoder:
   hidden_size_3: -1
   num_samples: ${model.num_samples}
   output_size: ${model.timeseries_encoder.ts_embedding_size}
+
+
+is_vae: True

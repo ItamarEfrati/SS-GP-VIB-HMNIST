@@ -17,6 +17,7 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
     """
 
     def __init__(self,
+                 is_vae,
                  data_decoder: Decoder,
                  ignore=None,
                  **kwargs):
@@ -25,7 +26,7 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
                                                                                          'data_decoder']
         kwargs['ignore'] = ignore
         super().__init__(**kwargs)
-
+        self.is_vae = is_vae
         self.data_decoder = data_decoder
 
     def decode(self, z, is_ensemble=False, is_train=True):
@@ -55,27 +56,30 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
         x, y, x_unlabeled = self.get_x_y(batch, is_train)
         if is_train:
             x_temp = torch.concat([x, x_unlabeled])
+            x_reconstruction_origin = x_unlabeled
         else:
             x_temp = x
+            x_reconstruction_origin = x
         pz_x, qy_z, px_z = self.forward(x_temp, self.hparams.is_ensemble, is_sample, is_train)
 
-        log_likelihood = self.compute_log_likelihood(qy_z, y)
-
-        log_values = {'mean_label_negative_log_likelihood': (-log_likelihood).mean()}
-
-        if is_train:
-            data_log_likelihood = self.compute_log_likelihood(px_z, x_unlabeled, is_multinomial=False)
-            data_log_likelihood = data_log_likelihood.sum(dim=[1, 2])
-            data_log_likelihood = data_log_likelihood.mean()
-            reconstruction_error = torch.concat([log_likelihood, data_log_likelihood])
-        else:
-            data_log_likelihood = self.compute_log_likelihood(px_z, x_temp, is_multinomial=False)
-            data_log_likelihood = data_log_likelihood.sum(dim=[1, 2])
-            data_log_likelihood = data_log_likelihood.mean()
-            reconstruction_error = log_likelihood
-
-        log_values['mean_data_negative_log_likelihood'] = -data_log_likelihood
         kl = self.compute_kl_divergence(pz_x)
+        label_log_likelihood = self.compute_log_likelihood(qy_z, y)
+
+        log_values = {'mean_label_negative_log_likelihood': (-label_log_likelihood).mean()}
+        data_log_likelihood = self.compute_log_likelihood(px_z, x_reconstruction_origin, is_multinomial=False)
+        data_log_likelihood = data_log_likelihood.sum(dim=[1, 2])
+        if self.is_vae:
+            reconstruction_error = data_log_likelihood
+            if is_train:
+                kl = kl[x_reconstruction_origin.shape[0]:]
+        else:
+            if is_train:
+                reconstruction_error = torch.concat([label_log_likelihood, data_log_likelihood])
+            else:
+                reconstruction_error = label_log_likelihood
+
+        log_values['mean_data_negative_log_likelihood'] = -data_log_likelihood.mean()
+
         entropy = qy_z.entropy().mean()
         log_values['qy_z_entropy'] = entropy
         elbo = reconstruction_error - self.hparams.beta * kl
@@ -89,7 +93,7 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
                 'probs': probabilities,
                 'target': y,
                 'reconstruction': px_z.mean,
-                'original': x_unlabeled,
+                'original': x_reconstruction_origin,
                 'latent': pz_x.mean}
 
     def get_x_y(self, batch, is_train=True):

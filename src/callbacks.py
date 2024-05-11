@@ -31,7 +31,7 @@ class ImagePlot(Callback):
             batch_idx: int,
             unused: int = 0,
     ) -> None:
-        if batch_idx == 1:
+        if batch_idx == 0:
             self.log_images((outputs['reconstruction'][:4], outputs['original'][:4]), trainer, pl_module, 'Train')
 
     def on_validation_batch_end(
@@ -43,7 +43,7 @@ class ImagePlot(Callback):
             batch_idx: int,
             unused: int = 0,
     ) -> None:
-        if batch_idx == 1:
+        if batch_idx == 0:
             self.log_images((outputs['reconstruction'][:4], outputs['original'][:4]), trainer, pl_module, 'Val')
 
     def on_test_batch_end(
@@ -55,7 +55,7 @@ class ImagePlot(Callback):
             batch_idx: int,
             unused: int = 0,
     ) -> None:
-        if batch_idx == 1:
+        if batch_idx == 0:
             self.log_images((outputs['reconstruction'][:4], outputs['original'][:4]), trainer, pl_module, 'Test')
 
 
