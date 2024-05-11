@@ -157,18 +157,22 @@ class MagicClass(object):
 
 
 class CustomSemiDataset(Dataset):
-    def __init__(self, datasets):
+    def __init__(self, datasets, is_ssl):
+        self.is_ssl = False
         self.datasets = datasets
 
         self.map_indices = [[] for _ in self.datasets]
         self.min_length = min(len(d) for d in self.datasets)
-        self.max_length = max(len(d) for d in self.datasets)
+        self.max_length = max(len(d) for d in self.datasets) if self.is_ssl else self.min_length
 
     def __getitem__(self, i):
         # return tuple(d[i] for d in self.datasets)
 
         # self.map_indices will reload when calling self.__len__()
-        return tuple(d[m[i]] for d, m in zip(self.datasets, self.map_indices))
+        if self.is_ssl:
+            return tuple(d[m[i]] for d, m in zip(self.datasets, self.map_indices))
+        else:
+            return tuple(self.datasets[0][self.map_indices[0][i]])
 
     def construct_map_index(self):
         """
@@ -199,10 +203,13 @@ class CustomSemiDataset(Dataset):
 
         # use same mapping index for all unlabeled dataset for data consistency
         # the i-th dataset is the labeled data
-        self.map_indices = [
-            update_indices(m, len(d), self.max_length)
-            for m, d in zip(self.map_indices, self.datasets)
-        ]
+        if self.is_ssl:
+            self.map_indices = [
+                update_indices(m, len(d), self.max_length)
+                for m, d in zip(self.map_indices, self.datasets)
+            ]
+        else:
+            self.map_indices = [update_indices(self.map_indices, len(self.datasets[0]), self.min_length)]
 
         # use same mapping index for all unlabeled dataset for data consistency
         # the i-th dataset is the labeled data
@@ -318,11 +325,13 @@ class SemiDataModule(DataModuleBase):
             num_val,
             num_augments,
             n_classes,
-            validation_split_seed
+            validation_split_seed,
+            is_ssl
     ):
         super(SemiDataModule, self).__init__(
             data_root, num_workers, batch_size, num_labeled, num_val, n_classes
         )
+        self.is_ssl = None
         self.num_augments = num_augments
         self.validation_split_seed = validation_split_seed
 
@@ -352,7 +361,7 @@ class SemiDataModule(DataModuleBase):
             0, Subset(self.train_set, self.labeled_indices)
         )
 
-        self.train_set = CustomSemiDataset(train_list)
+        self.train_set = CustomSemiDataset(train_list, self.is_ssl)
 
     def train_dataloader(self):
         self.train_set.construct_map_index()

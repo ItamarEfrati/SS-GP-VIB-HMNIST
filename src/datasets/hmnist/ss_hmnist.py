@@ -22,7 +22,8 @@ class SemiSupervisedHMnist(SemiDataModule):
             num_labeled,
             num_val,
             num_augments,
-            validation_split_seed
+            validation_split_seed,
+            is_ssl
     ):
         n_classes = 10
         super(SemiSupervisedHMnist, self).__init__(
@@ -33,7 +34,8 @@ class SemiSupervisedHMnist(SemiDataModule):
             num_val,
             num_augments,
             n_classes,
-            validation_split_seed
+            validation_split_seed,
+            is_ssl
         )
         self.save_hyperparameters()
 
