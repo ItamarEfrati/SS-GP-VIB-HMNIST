@@ -82,7 +82,10 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
         return {'log': log_values,
                 'preds': y_pred,
                 'probs': probabilities,
-                'target': y}
+                'target': y,
+                'reconstruction': px_z.mean,
+                'original': x_unlabeled,
+                'latent': pz_x.mean}
 
     def get_x_y(self, batch, is_train=True):
         if is_train:

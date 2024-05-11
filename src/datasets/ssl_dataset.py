@@ -158,7 +158,7 @@ class MagicClass(object):
 
 class CustomSemiDataset(Dataset):
     def __init__(self, datasets, is_ssl):
-        self.is_ssl = False
+        self.is_ssl = is_ssl
         self.datasets = datasets
 
         self.map_indices = [[] for _ in self.datasets]
@@ -331,7 +331,7 @@ class SemiDataModule(DataModuleBase):
         super(SemiDataModule, self).__init__(
             data_root, num_workers, batch_size, num_labeled, num_val, n_classes
         )
-        self.is_ssl = None
+        self.is_ssl = is_ssl
         self.num_augments = num_augments
         self.validation_split_seed = validation_split_seed
 

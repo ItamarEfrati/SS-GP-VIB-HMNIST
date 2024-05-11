@@ -1,6 +1,7 @@
 import pytorch_lightning as pl
 import torch
 import torchmetrics
+import torchvision
 
 from torch import nn
 from typing import Optional
@@ -9,6 +10,53 @@ from pytorch_lightning import Callback
 from pytorch_lightning.callbacks import EarlyStopping
 
 from utils.model_utils import get_confusion_matrix_image, get_precision_recall_curve_image, get_roc_curve_image
+
+
+class ImagePlot(Callback):
+    def __init__(self):
+        image_shape = None
+
+    def log_images(self, outputs, trainer, pl_module, split):
+        for i in range(4):
+            tensors = torch.concat([outputs[0][:i+1], outputs[1][:i+1]]).reshape(-1, 28, 28, 1).permute(0, 3, 1, 2)
+            grid = torchvision.utils.make_grid(tensors, nrow=10)
+            pl_module.logger.experiment.add_image(f'{split} reconstruction images {i}', grid, pl_module.current_epoch)
+
+    def on_train_batch_end(
+            self,
+            trainer: "pl.Trainer",
+            pl_module: "pl.LightningModule",
+            outputs,
+            batch,
+            batch_idx: int,
+            unused: int = 0,
+    ) -> None:
+        if batch_idx == 1:
+            self.log_images((outputs['reconstruction'][:4], outputs['original'][:4]), trainer, pl_module, 'Train')
+
+    def on_validation_batch_end(
+            self,
+            trainer: "pl.Trainer",
+            pl_module: "pl.LightningModule",
+            outputs,
+            batch,
+            batch_idx: int,
+            unused: int = 0,
+    ) -> None:
+        if batch_idx == 1:
+            self.log_images((outputs['reconstruction'][:4], outputs['original'][:4]), trainer, pl_module, 'Val')
+
+    def on_test_batch_end(
+            self,
+            trainer: "pl.Trainer",
+            pl_module: "pl.LightningModule",
+            outputs,
+            batch,
+            batch_idx: int,
+            unused: int = 0,
+    ) -> None:
+        if batch_idx == 1:
+            self.log_images((outputs['reconstruction'][:4], outputs['original'][:4]), trainer, pl_module, 'Test')
 
 
 class MyEarlyStopping(Callback):
