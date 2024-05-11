@@ -62,11 +62,15 @@ class SemiSupervisedHMnist(SemiDataModule):
         train_tensors = []
         test_tensors = []
 
+        # train_tensors.append(tensor(data[data_name_format.format('train')]).transpose(-1, -2))
+        # test_tensors.append(tensor(data[data_name_format.format('test')]).transpose(-1, -2))
         train_tensors.append(tensor(data[data_name_format.format('train')]))
-        test_tensors.append(tensor(data[data_name_format.format('test')])[5000:])
+        test_tensors.append(tensor(data[data_name_format.format('test')]))
+        # for gp-vae comparison [5000:])
 
         train_tensors.append(tensor(data['y_train']))
-        test_tensors.append(tensor(data['y_test'])[5000:])
+        test_tensors.append(tensor(data['y_test']))
+        # [5000:])
 
         self.train_set = TensorDataset(*train_tensors)
         self.test_set = TensorDataset(*test_tensors)
