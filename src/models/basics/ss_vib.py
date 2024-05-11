@@ -66,14 +66,15 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
             reconstruction_error = torch.concat([log_likelihood, data_log_likelihood])
             data_log_likelihood = data_log_likelihood.mean()
             log_values = {'mean_label_negative_log_likelihood': (-log_likelihood).mean(),
-                          'mean_data_negative_log_likelihood': data_log_likelihood}
+                          'mean_data_negative_log_likelihood': -data_log_likelihood}
         else:
             reconstruction_error = log_likelihood
             log_values = {'mean_label_negative_log_likelihood': (-log_likelihood).mean()}
         kl = self.compute_kl_divergence(pz_x)
-
+        entropy = qy_z.entropy().mean()
+        log_values['qy_z_entropy'] = entropy
         elbo = reconstruction_error - self.hparams.beta * kl
-        elbo = elbo.mean()
+        elbo = elbo.mean() + entropy
         loss = -elbo
         probabilities, y_pred = self.get_y_pred(qy_z)
         log_values['loss'] = loss
