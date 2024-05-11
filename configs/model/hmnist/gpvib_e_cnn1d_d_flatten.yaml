@@ -67,7 +67,8 @@ beta: 0.0034
 num_samples: 50
 class_weight_file:
 monitor_metric: #${callbacks.early_stopping.monitor} # for the scheduler
-is_sample_weight: True
+use_class_weight: False
+sample_during_evaluation: False
 
 # time series vib
 is_ensemble: False # always false
