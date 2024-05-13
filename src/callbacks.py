@@ -17,10 +17,9 @@ class ImagePlot(Callback):
         image_shape = None
 
     def log_images(self, outputs, trainer, pl_module, split):
-        for i in range(4):
-            tensors = torch.concat([outputs[0][:i+1], outputs[1][:i+1]]).reshape(-1, 28, 28, 1).permute(0, 3, 1, 2)
-            grid = torchvision.utils.make_grid(tensors, nrow=10)
-            pl_module.logger.experiment.add_image(f'{split} reconstruction images {i}', grid, pl_module.current_epoch)
+        tensors = torch.concat([outputs[0], outputs[1]]).reshape(-1, 28, 28, 1).permute(0, 3, 1, 2)
+        grid = torchvision.utils.make_grid(tensors, nrow=10)
+        pl_module.logger.experiment.add_image(f'{split} reconstruction images', grid, pl_module.current_epoch)
 
     def on_train_batch_end(
             self,

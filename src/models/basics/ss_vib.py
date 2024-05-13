@@ -83,7 +83,8 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
         entropy = qy_z.entropy().mean()
         log_values['qy_z_entropy'] = entropy
         elbo = reconstruction_error - self.hparams.beta * kl
-        elbo = elbo.mean() + entropy
+        # elbo = elbo.mean() + entropy
+        elbo = elbo.mean()
         loss = -elbo
         probabilities, y_pred = self.get_y_pred(qy_z)
         log_values['loss'] = loss
