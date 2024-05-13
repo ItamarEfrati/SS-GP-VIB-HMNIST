@@ -54,6 +54,7 @@ class BernoulliDecoder(Decoder):
         for hidden_size in [hidden_size_1, hidden_size_2, hidden_size_3]:
             if hidden_size == -1:
                 break
+            hidden_sizes.append(hidden_size)
         hidden_sizes.append(output_size)
         layers = get_linear_layers(hidden_sizes)
         self.net = nn.Sequential(*layers)
