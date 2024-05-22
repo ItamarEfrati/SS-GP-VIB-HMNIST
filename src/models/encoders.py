@@ -257,10 +257,10 @@ class TimeSeriesDataEncoder(Encoder):
         layers += get_linear_layers(hidden_sizes + [3 * encoding_size])
         self.net = nn.Sequential(*layers)
 
-        self.im = ImagePreprocessor((-1, 28, 28, 1), hidden_sizes=(1, 256, 1), kernel_size=(3, 3))
+        # self.im = ImagePreprocessor((-1, 28, 28, 1), hidden_sizes=(1, 256, 1), kernel_size=(3, 3))
 
     def __call__(self, x):
-        return self.net(self.im(x))
+        return self.net(x)
 
     class TimeSeriesDataEncoder2(Encoder):
         """

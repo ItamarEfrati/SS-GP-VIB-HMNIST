@@ -15,12 +15,13 @@ from torch.distributions.multinomial import Multinomial
 
 class Decoder(nn.Module, ABC):
 
-    def __init__(self, num_samples, output_size):
+    def __init__(self, num_samples, output_size, is_binary=False):
         """ Decoder parent class with no specified output distribution
         """
         super(Decoder, self).__init__()
         self.num_samples = num_samples
         self.output_size = output_size
+        self.is_binary = is_binary
 
     def get_probs(self, logits, is_ensemble):
         if is_ensemble:
@@ -29,7 +30,11 @@ class Decoder(nn.Module, ABC):
             probs = pre_instance_occurrences / self.num_samples
         else:
             logits = logits.mean(1)
-            probs = F.softmax(logits, dim=-1)
+            if self.is_binary:
+                probs = F.sigmoid(logits)
+            else:
+                probs = F.softmax(logits, dim=-1)
+
         return probs
 
     @abstractmethod
@@ -46,9 +51,10 @@ class BernoulliDecoder(Decoder):
                  z_dim,
                  hidden_size_1,
                  hidden_size_2,
-                 hidden_size_3
+                 hidden_size_3,
+                 **kwargs
                  ):
-        super().__init__(num_samples, output_size)
+        super().__init__(num_samples, output_size, **kwargs)
         input_size = z_dim
         hidden_sizes = [input_size]
         for hidden_size in [hidden_size_1, hidden_size_2, hidden_size_3]:

@@ -12,9 +12,9 @@ defaults:
   - metrics: vib_val
   - extras: default
 
-seed:
+seed: 1341
 mode: debug
-run_test: False
+run_test: True
 optimized_metric: ${metrics.optimize}
 
 # evaluate on test set, using best model weights achieved during training

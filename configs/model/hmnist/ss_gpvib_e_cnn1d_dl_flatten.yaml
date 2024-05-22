@@ -46,6 +46,8 @@ decoder:
   hidden_size_3: -1
   num_samples: ${model.num_samples}
   output_size: ${model.num_classes}
+  is_binary: False
+
 
 data_decoder:
   _target_: src.models.decoders.BernoulliDecoder
@@ -55,6 +57,7 @@ data_decoder:
   hidden_size_3: 256
   num_samples: ${model.num_samples}
   output_size: ${model.timeseries_encoder.ts_embedding_size}
+  is_binary: True
 
 
-is_vae: True
+is_vae: False

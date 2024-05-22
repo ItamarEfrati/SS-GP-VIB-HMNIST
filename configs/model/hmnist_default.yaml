@@ -17,7 +17,7 @@ scheduler:
 # vib
 num_classes: 10
 alpha: -1 # scaling factor for positive class weight
-beta: 0.01
+beta: 0.8
 num_samples: 1
 class_weight_file:
 monitor_metric: ${callbacks.model_checkpoint.monitor} # for the scheduler
@@ -30,7 +30,7 @@ is_ensemble: False # always false
 # gp_vib
 kernel: cauchy
 sigma: 1
-length_scale: 1
+length_scale: 2
 kernel_scales: 1
 
 
