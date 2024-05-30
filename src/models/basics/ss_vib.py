@@ -18,6 +18,7 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
 
     def __init__(self,
                  is_vae,
+                 data_beta,
                  data_decoder: Decoder,
                  ignore=None,
                  **kwargs):
@@ -29,18 +30,20 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
         self.is_vae = is_vae
         self.data_decoder = data_decoder
 
-    def decode(self, z, is_ensemble=False, is_train=True):
+    def decode(self, z, is_train=True):
         if is_train:
             z_labeled, z_unlabeled = z[:z.shape[0] // 2], z[z.shape[0] // 2:]
-            px_z = self.data_decoder(z_unlabeled, is_ensemble)
-            qy_z = self.label_decoder(z_labeled, is_ensemble)
+            px_z = self.data_decoder(z_unlabeled)
+            qy_z = self.label_decoder(z_labeled)
+            qy_z_full = self.label_decoder(z)
         else:
-            qy_z = self.label_decoder(z, is_ensemble)
-            px_z = self.data_decoder(z, is_ensemble)
+            qy_z = self.label_decoder(z)
+            px_z = self.data_decoder(z)
+            qy_z_full = qy_z
 
-        return qy_z, px_z
+        return qy_z, px_z, qy_z_full
 
-    def forward(self, x, is_ensemble=False, is_sample=True, is_train=True):
+    def forward(self, x, is_sample=True, is_train=True):
         pz_x = self.encode(x)
         if is_sample:
             z = pz_x.rsample((self.num_samples,))  # (num_samples, B, z_dim)
@@ -48,8 +51,8 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
             z = pz_x.loc.unsqueeze(0)
         # transpose batch shape with num samples shape (B, num_samples, z_dim)
         z = z.transpose(0, 1)
-        qy_z, px_z = self.decode(z, is_ensemble, is_train)
-        return pz_x, qy_z, px_z
+        qy_z, px_z, qy_z_full = self.decode(z, is_train)
+        return pz_x, qy_z, px_z, qy_z_full
 
     def run_forward_step(self, batch, is_sample, stage):
         is_train = stage is 'train'
@@ -60,7 +63,7 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
         else:
             x_temp = x
             x_reconstruction_origin = x
-        pz_x, qy_z, px_z = self.forward(x_temp, self.hparams.is_ensemble, is_sample, is_train)
+        pz_x, qy_z, px_z, qy_z_full = self.forward(x_temp, is_sample, is_train)
 
         kl = self.compute_kl_divergence(pz_x)
         label_log_likelihood = self.compute_log_likelihood(qy_z, y)
@@ -77,14 +80,15 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
                 reconstruction_error = torch.concat([label_log_likelihood, data_log_likelihood])
             else:
                 reconstruction_error = label_log_likelihood
-
+        batch_size = data_log_likelihood.shape[0]
+        kl[batch_size:] = kl[batch_size:] * self.hparams.data_beta
+        kl[:batch_size] = kl[:batch_size] * self.hparams.beta
         log_values['mean_data_negative_log_likelihood'] = -data_log_likelihood.mean()
 
-        entropy = qy_z.entropy().mean()
+        entropy = qy_z_full.entropy().mean()
         log_values['qy_z_entropy'] = entropy
-        elbo = reconstruction_error - self.hparams.beta * kl
-        # elbo = elbo.mean() + entropy
-        elbo = elbo.mean()
+        elbo = reconstruction_error - kl
+        elbo = elbo.mean() + entropy
         loss = -elbo
         probabilities, y_pred = self.get_y_pred(qy_z)
         log_values['loss'] = loss
@@ -105,11 +109,10 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
         else:
             x_unlabeled = None
             x, y = batch[0], batch[1]
-        if not self.hparams.is_ensemble:
-            # if not ensemble that the model is expecting (B, input_dim)
-            x = torch.flatten(x, 1)
-        else:
-            y = torch.tile(y.reshape(-1, 1), (1, x.shape[1]))
+
+        # the model is expecting (B, input_dim)
+        x = torch.flatten(x, 1)
+        x_unlabeled = torch.flatten(x_unlabeled, 1)
         return x, y, x_unlabeled
 
     def get_y_pred(self, qy_z):

@@ -53,7 +53,7 @@ class VIB(AbstractVIB, pl.LightningModule):
                                             covariance_matrix=torch.eye(self.encoder.encoding_size, device=self.device))
         return self.prior
 
-    def forward(self, x, is_sample, is_ensemble):
+    def forward(self, x, is_sample):
         pz_x = self.encode(x)
         if self.hparams.sample_during_evaluation:
             z = pz_x.rsample((self.num_samples,))  # (num_samples, B, z_dim)
@@ -61,13 +61,13 @@ class VIB(AbstractVIB, pl.LightningModule):
             z = pz_x.loc.unsqueeze(0)
         # transpose batch shape with num samples shape (B, num_samples, z_dim)
         z = z.transpose(0, 1)
-        qy_z = self.decode(z, is_ensemble)
+        qy_z = self.decode(z)
         return pz_x, qy_z
 
     def run_forward_step(self, batch, is_sample, stage):
         x, y = self.get_x_y(batch)
 
-        pz_x, qy_z = self.forward(x, is_ensemble=self.hparams.is_ensemble, is_sample=is_sample)
+        pz_x, qy_z = self.forward(x, is_sample=is_sample)
 
         log_likelihood = self.compute_log_likelihood(qy_z, y)
         kl = self.compute_kl_divergence(pz_x)
@@ -96,11 +96,8 @@ class VIB(AbstractVIB, pl.LightningModule):
 
     def get_x_y(self, batch):
         x, y = batch[0], batch[1]
-        if not self.hparams.is_ensemble:
-            # if not ensemble that the model is expecting (B, input_dim)
-            x = torch.flatten(x, 1)
-        else:
-            y = torch.tile(y.reshape(-1, 1), (1, x.shape[1]))
+        # the model is expecting (B, input_dim)
+        x = torch.flatten(x, 1)
         return x, y
 
     def get_y_pred(self, qy_z):

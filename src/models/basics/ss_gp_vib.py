@@ -34,7 +34,7 @@ class SemiSupervisedGPVIB(SemiSupervisedVIB, pl.LightningModule):
                                       device=self.device)
         return self.prior
 
-    def forward(self, x, is_ensemble=False, is_sample=True, is_train=True):
+    def forward(self, x, is_sample=True, is_train=True):
         pz_x = self.encode(x)
         if is_sample:
             z = pz_x.rsample((self.num_samples,))  # (num_samples, B, z_dim)
@@ -44,8 +44,8 @@ class SemiSupervisedGPVIB(SemiSupervisedVIB, pl.LightningModule):
         # transpose time and z_dim dimensions
         # z is now a latent series of shape (batch, num_samples, time_length, z_dim)
         z = z.permute(1, 0, 3, 2)
-        qy_z, px_z = self.decode(z, is_ensemble, is_train)
-        return pz_x, qy_z, px_z
+        qy_z, px_z, qy_z_full = self.decode(z, is_train)
+        return pz_x, qy_z, px_z, qy_z_full
 
     def encode(self, x):
         # transpose features and time dimensions to run cnn over time per feature
@@ -67,6 +67,4 @@ class SemiSupervisedGPVIB(SemiSupervisedVIB, pl.LightningModule):
         else:
             x_unlabeled = None
             x, y = batch[0], batch[1]
-        if self.hparams.is_ensemble:
-            y = torch.tile(y.reshape(-1, 1), (1, x.shape[1]))
         return x, y, x_unlabeled

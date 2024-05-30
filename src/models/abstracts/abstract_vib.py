@@ -37,22 +37,22 @@ class AbstractVIB(ABC):
     def encode(self, x):
         return self.encoder(x)
 
-    def decode(self, z, is_ensemble=False):
-        return self.label_decoder(z, is_ensemble)
+    def decode(self, z):
+        return self.label_decoder(z)
 
     def compute_kl_divergence(self, q):
         kl = torch.distributions.kl.kl_divergence(q, self.r_z())
         kl = torch.where(torch.isfinite(kl), kl, torch.zeros_like(kl))
         return kl
 
-    def forward(self, x, is_sample, is_ensemble):
+    def forward(self, x, is_sample):
         pz_x = self.encode(x)
         if is_sample:
             z = pz_x.rsample((self.num_samples,))  # (num_samples, B, z_dim)
         else:
             z = pz_x.loc.unsqueeze(0)
         z = z.transpose(0, 1)
-        qy_z = self.decode(z, is_ensemble)
+        qy_z = self.decode(z)
         return pz_x, qy_z
 
     # endregion
