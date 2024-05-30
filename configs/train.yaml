@@ -8,13 +8,13 @@ defaults:
   - hydra: default
   - debug:
   - paths: default
-#  - hparams_search: hmnist/ss_gpvib_e_cnn1d_dl_flatten
+  - hparams_search: hmnist/ss_gpvib_e_cnn1d_dl_flatten
   - metrics: vib_val
   - extras: default
 
 seed: 1341
 mode: debug
-run_test: True
+run_test: False
 optimized_metric: ${metrics.optimize}
 
 # evaluate on test set, using best model weights achieved during training

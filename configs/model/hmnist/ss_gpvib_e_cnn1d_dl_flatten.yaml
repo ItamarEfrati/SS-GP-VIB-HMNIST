@@ -61,4 +61,5 @@ data_decoder:
 
 
 is_vae: False
-data_beta: 0.8
+data_beta: -1
+entropy_coef: 0

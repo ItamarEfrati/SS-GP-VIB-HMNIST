@@ -18,6 +18,7 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
 
     def __init__(self,
                  is_vae,
+                 entropy_coef,
                  data_beta,
                  data_decoder: Decoder,
                  ignore=None,
@@ -27,7 +28,7 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
                                                                                          'data_decoder']
         kwargs['ignore'] = ignore
         super().__init__(**kwargs)
-        self.is_vae = is_vae
+        self.data_beta = data_beta if data_beta != -1 else self.beta
         self.data_decoder = data_decoder
 
     def decode(self, z, is_train=True):
@@ -71,7 +72,7 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
         log_values = {'mean_label_negative_log_likelihood': (-label_log_likelihood).mean()}
         data_log_likelihood = self.compute_log_likelihood(px_z, x_reconstruction_origin, is_multinomial=False)
         data_log_likelihood = data_log_likelihood.sum(dim=[1, 2])
-        if self.is_vae:
+        if self.hparams.is_vae:
             reconstruction_error = data_log_likelihood
             if is_train:
                 kl = kl[x_reconstruction_origin.shape[0]:]
@@ -81,14 +82,14 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
             else:
                 reconstruction_error = label_log_likelihood
         batch_size = data_log_likelihood.shape[0]
-        kl[batch_size:] = kl[batch_size:] * self.hparams.data_beta
+        kl[batch_size:] = kl[batch_size:] * self.data_beta
         kl[:batch_size] = kl[:batch_size] * self.hparams.beta
         log_values['mean_data_negative_log_likelihood'] = -data_log_likelihood.mean()
 
         entropy = qy_z_full.entropy().mean()
         log_values['qy_z_entropy'] = entropy
         elbo = reconstruction_error - kl
-        elbo = elbo.mean() + entropy
+        elbo = elbo.mean() + self.hparams.entropy_coef * entropy
         loss = -elbo
         probabilities, y_pred = self.get_y_pred(qy_z)
         log_values['loss'] = loss

@@ -8,7 +8,7 @@ defaults:
 
 # choose metric which will be optimized by Optuna
 # make sure this is the correct name of some metric logged in lightning module!
-optimized_metric: "val_auroc"
+optimized_metric: "val_acc"
 
 # here we define Optuna hyperparameter search
 # it optimizes for value returned from function with @hydra.main decorator
@@ -21,10 +21,10 @@ hydra:
 
     # storage URL to persist optimization results
     # for example, you can use SQLite if you set 'sqlite:///example.db'
-    storage: null
+    storage: sqlite:///one_kl_coeff.db
 
     # name of the study to persist optimization results
-    study_name: mimic3
+    study_name: hmnist_sll
 
     # number of parallel workers
     n_jobs: 1
@@ -45,18 +45,4 @@ hydra:
 
     # define hyperparameter search space
     params:
-      datamodule.batch_size: choice(64, 128)
-
-      model.optimizer.lr: range(0.0001, 0.01, 0.00001)
-      model.beta: range(0.05, 0.8, step=0.05)
-      model.optimizer.weight_decay: range(0.0001, 0.05, 0.00001)
-
-      model.timeseries_encoder.n_cnn_layers: choice(1, 2, 3, 4)
-      model.timeseries_encoder.encoding_size: choice(8, 12, 16, 32)
-
-      +n_encoder_layers: choice(0, 1, 2)
-      +n_decoder_layers: choice(0, 1, 2, 3)
-
-      model.num_samples: choice(1, 4, 8, 16, 32)
-
-    custom_search_space: utils.optuna_hooks.ss_hmnist_gp_vib_e_multi_cnn1d_d_flatten
+      model.beta: interval(0.01, 10)
