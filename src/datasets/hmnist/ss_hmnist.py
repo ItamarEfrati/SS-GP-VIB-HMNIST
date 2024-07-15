@@ -21,22 +21,20 @@ class SemiSupervisedHMnist(SemiDataModule):
             batch_size,
             num_labeled,
             num_val,
-            num_augments,
             validation_split_seed,
             is_ssl
     ):
-        n_classes = 10
+
         super(SemiSupervisedHMnist, self).__init__(
             download_dir,
             num_workers,
             batch_size,
             num_labeled,
             num_val,
-            num_augments,
-            n_classes,
             validation_split_seed,
             is_ssl
         )
+        self.n_classes = 10
         self.save_hyperparameters()
 
     def prepare_data(self):
@@ -64,15 +62,11 @@ class SemiSupervisedHMnist(SemiDataModule):
         train_tensors = []
         test_tensors = []
 
-        # train_tensors.append(tensor(data[data_name_format.format('train')]).transpose(-1, -2))
-        # test_tensors.append(tensor(data[data_name_format.format('test')]).transpose(-1, -2))
         train_tensors.append(tensor(data[data_name_format.format('train')]))
         test_tensors.append(tensor(data[data_name_format.format('test')]))
-        # for gp-vae comparison [5000:])
 
         train_tensors.append(tensor(data['y_train']))
         test_tensors.append(tensor(data['y_test']))
-        # [5000:])
 
         self.train_set = TensorDataset(*train_tensors)
         self.test_set = TensorDataset(*test_tensors)
@@ -87,24 +81,11 @@ if __name__ == '__main__':
                              is_data_missing=False,
                              num_labeled=100,
                              num_val=5000,
-                             num_augments=1,
-                             validation_split_seed=42)
-
-    d2 = SemiSupervisedHMnist(download_url='https://www.dropbox.com/s/xzhelx89bzpkkvq/hmnist_mnar.npz?dl=1',
-                              download_dir='C:\Developments\GP-VIB\data\HMNIST',
-                              file_name='hmnist_mnar.npz',
-                              batch_size=64,
-                              num_workers=2,
-                              is_data_missing=False,
-                              num_labeled=100,
-                              num_val=5000,
-                              num_augments=1,
-                              validation_split_seed=42)
+                             validation_split_seed=42,
+                             is_ssl=True)
 
     d.prepare_data()
-    d2.prepare_data()
     d.setup()
-    d2.setup()
     t_d = d.train_dataloader()
     for batch in t_d:
         print(1)

@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch.distributions.multivariate_normal import MultivariateNormal
 
 from utils.model_utils import get_2d_cnn_layers, get_linear_layers, get_1d_cnn_layers, Permute, get_cnn1d_output_dim, \
-    get_cnn2d_output_dim, Unsqueeze, Squeeze, SelfAttention, get_parameters_list
+    get_cnn2d_output_dim, Unsqueeze, Squeeze, get_parameters_list
 
 
 class Encoder(nn.Module, ABC):
@@ -137,7 +137,7 @@ class BandedJointEncoder(Encoder):
 
     def __call__(self, statistics):
         batch_size = statistics.shape[0]
-        statistics = torch.permute(statistics, dims=(0, 2, 1))
+        # statistics = torch.permute(statistics, dims=(0, 2, 1))
         mu = statistics[:, :self.encoding_size]
         precision_parameters = statistics[:, self.encoding_size:]
 
@@ -744,3 +744,118 @@ class TimeSeriesDataEncoder(Encoder):
             return x
 
     # endregion
+
+
+# region Inception Time Series Encoders
+
+class InceptionModule(nn.Module):
+    def __init__(self, in_filters, nb_filters, kernel_size, use_bottleneck, bottleneck_size):
+        super(InceptionModule, self).__init__()
+
+        self.use_bottleneck = use_bottleneck
+        self.bottleneck_size = bottleneck_size
+
+        if use_bottleneck:
+            self.input_inception = nn.Conv1d(in_channels=in_filters, out_channels=bottleneck_size, kernel_size=1,
+                                             bias=False)
+        else:
+            bottleneck_size = in_filters
+
+        kernel_size_s = [kernel_size // (2 ** i) for i in range(3)]
+
+        self.conv_list = nn.ModuleList()
+        for k_size in kernel_size_s:
+            self.conv_list.append(
+                nn.Conv1d(in_channels=bottleneck_size, out_channels=nb_filters, kernel_size=k_size, stride=1,
+                          padding='same', bias=False))
+
+        self.max_pool_1 = nn.MaxPool1d(kernel_size=3, stride=1, padding=1)
+        self.conv_6 = nn.Conv1d(in_channels=in_filters, out_channels=nb_filters, kernel_size=1, bias=False)
+
+        self.batch_norm = nn.BatchNorm1d(nb_filters * 4)
+
+    def forward(self, x):
+        if self.use_bottleneck and x.size(-1) > 1:
+            input_inception = self.input_inception(x)
+        else:
+            input_inception = x
+
+        conv_list = [conv(input_inception) for conv in self.conv_list]
+        conv_list.append(self.conv_6(self.max_pool_1(x)))
+
+        x = torch.cat(conv_list, dim=1)
+        x = self.batch_norm(x)
+        x = F.relu(x)
+        return x
+
+
+class InceptionEncoder(Encoder):
+    def __init__(self,
+                 input_n_channels,
+                 encoding_size,
+                 encoding_series_size,
+                 number_of_filters,
+                 bottleneck_size,
+                 use_bottleneck,
+                 kernel_size=40,
+                 depth=1
+                 ):
+        super().__init__(encoding_size)
+        self.input_n_channels = input_n_channels
+        self.encoding_size = encoding_size
+        self.encoding_series_size = encoding_series_size
+        self.number_of_filters = number_of_filters
+        self.bottleneck_size = bottleneck_size
+        self.use_bottleneck = use_bottleneck
+        self.kernels = [kernel_size, kernel_size // 2, kernel_size // 4]
+        self.depth = depth
+        self.blocks = nn.ModuleList()
+        self.residual_blocks = nn.ModuleList()
+        self._build_network()
+
+    def _build_network(self):
+        for d in range(self.depth):
+            current_block = self._get_next_block(d)
+            self.blocks.append(current_block)
+            residual_block = self._get_next_residual_block(d)
+            self.residual_blocks.append(residual_block)
+
+        self.last_block = nn.Sequential(
+            nn.Conv1d(in_channels=4 * self.number_of_filters,
+                      out_channels=3 * self.encoding_size,
+                      kernel_size=1,
+                      bias=False),
+            nn.AdaptiveMaxPool1d(self.encoding_series_size),
+        )
+
+    def _get_next_residual_block(self, d):
+        residual_block = nn.Sequential(Permute((0, 2, 1))) if d == 0 else nn.Sequential()
+        in_channels = self.input_n_channels if d == 0 else 4 * self.number_of_filters
+        residual_block.add_module(f'residual {d + 1} CNN',
+                                  nn.Conv1d(in_channels=in_channels, out_channels=4 * self.number_of_filters,
+                                            kernel_size=1,
+                                            padding=0))
+        residual_block.add_module(f'residual {d + 1} batch norm', nn.BatchNorm1d(4 * self.number_of_filters))
+        return residual_block
+
+    def _get_next_block(self, d):
+        is_first_block = d == 0
+        current_block = nn.Sequential(Permute((0, 2, 1))) if is_first_block else nn.Sequential()
+        for i in range(3):
+            in_size = self.input_n_channels if i == 0 and is_first_block else 4 * self.number_of_filters
+            use_bottleneck = self.use_bottleneck if i == 0 else True
+            inception_module = InceptionModule(in_size, self.number_of_filters, self.kernels[i],
+                                               use_bottleneck=use_bottleneck,
+                                               bottleneck_size=self.bottleneck_size)
+            current_block.add_module(f'inception_module_{i + 1}', inception_module)
+        return current_block
+
+    def __call__(self, x):
+        residual_input = x
+        for i in range(len(self.blocks)):
+            x = self.blocks[i](x)
+            residual = self.residual_blocks[i](residual_input)
+            residual_input = x
+            x = F.relu(x + residual)
+        x = self.last_block(x)
+        return x

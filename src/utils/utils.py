@@ -177,7 +177,7 @@ def log_hyperparameters(hparams: dict, metrics: dict) -> None:
         new_hparams['init_method'] = config['callbacks']['init_parameters']['init_method']
 
     # send hparams to all loggers
-    trainer.logger.log_hyperparams(new_hparams, metrics)
+    trainer.logger.log_hyperparams(new_hparams)
 
 
 def get_metric_value(metric_dict: dict, metric_name: str) -> float:

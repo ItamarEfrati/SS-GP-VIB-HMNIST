@@ -1,15 +1,85 @@
-import abc
 import math
-import torch
 import random
-import itertools
 import numpy as np
 
-from torch.utils.data import DataLoader, SubsetRandomSampler, Dataset
+from torch.utils.data import DataLoader, Dataset
 import pytorch_lightning as pl
 
 
-def get_split_indices(labels, num_labeled, num_val, _n_classes, seed=None):
+# def get_split_indices(labels, num_labeled, num_val, _n_classes, seed=None):
+#     """
+#     Split the train data into the following three set:
+#     (1) labeled data
+#     (2) unlabeled data
+#     (3) val data
+#
+#     Data distribution of the three sets are same as which of the
+#     original training data.
+#
+#     Inputs:
+#         labels: (np.int) array of labels
+#         num_labeled: (int)
+#         num_val: (int)
+#         _n_classes: (int)
+#
+#
+#     Return:
+#         the three indices for the three sets
+#     """
+#     if seed is not None:
+#         np.random.seed(seed)
+#     val_indices = []
+#     train_indices = []
+#
+#     num_total = len(labels)
+#     num_per_class = []
+#     for c in range(_n_classes):
+#         num_per_class.append((labels == c).sum().astype(int))
+#
+#     # obtain val indices, data evenly drawn from each class
+#     for c, num_class in zip(range(_n_classes), num_per_class):
+#         val_this_class = max(int(num_val * (num_class / num_total)), 1)
+#         class_indices = np.where(labels == c)[0]
+#         np.random.shuffle(class_indices)
+#         val_indices.append(class_indices[:val_this_class])
+#         train_indices.append(class_indices[val_this_class:])
+#
+#     # split data into labeled and unlabeled
+#     labeled_indices = []
+#     unlabeled_indices = []
+#
+#     # num_labeled_per_class = num_labeled // _n_classes
+#
+#     for c, num_class in zip(range(_n_classes), num_per_class):
+#         num_labeled_this_class = max(int(num_labeled * (num_class / num_total)), 1)
+#         labeled_indices.append(train_indices[c][:num_labeled_this_class])
+#         unlabeled_indices.append(train_indices[c][num_labeled_this_class:])
+#
+#     labeled_indices = np.hstack(labeled_indices)
+#     unlabeled_indices = np.hstack(unlabeled_indices)
+#     val_indices = np.hstack(val_indices)
+#
+#     return labeled_indices, unlabeled_indices, val_indices
+
+
+def split_train_val(train_labels, num_val, n_classes, seed=None):
+    if seed is not None:
+        np.random.seed(seed)
+    val_indices = []
+    train_indices = []
+    num_total = len(train_labels)
+    num_per_class = [(train_labels == c).sum().astype(int) for c in range(n_classes)]
+    for c, num_class in zip(range(n_classes), num_per_class):
+        val_this_class = max(int(num_val * (num_class / num_total)), 1)
+        class_indices = np.where(train_labels == c)[0]
+        np.random.shuffle(class_indices)
+        val_indices.append(class_indices[:val_this_class])
+        train_indices.append(class_indices[val_this_class:])
+
+    return val_indices, train_indices
+
+
+def split_train(train_labels, num_labeled, n_classes, seed=None):
     """
     Split the train data into the following three set:
     (1) labeled data
@@ -31,38 +101,32 @@ def get_split_indices(labels, num_labeled, num_val, _n_classes, seed=None):
     """
     if seed is not None:
         np.random.seed(seed)
-    val_indices = []
-    train_indices = []
 
-    num_total = len(labels)
-    num_per_class = []
-    for c in range(_n_classes):
-        num_per_class.append((labels == c).sum().astype(int))
+    train_indices = []
+    num_total = len(train_labels)
+    num_per_class = [(train_labels == c).sum().astype(int) for c in range(n_classes)]
 
     # obtain val indices, data evenly drawn from each class
-    for c, num_class in zip(range(_n_classes), num_per_class):
-        val_this_class = max(int(num_val * (num_class / num_total)), 1)
-        class_indices = np.where(labels == c)[0]
-        np.random.shuffle(class_indices)
-        val_indices.append(class_indices[:val_this_class])
-        train_indices.append(class_indices[val_this_class:])
+    for c, num_class in zip(range(n_classes), num_per_class):
+        class_indices = np.where(train_labels == c)[0]
+        train_indices.append(class_indices)
 
-    # split data into labeled and unlabeled
+    labeled_indices, unlabeled_indices = split_label_unlabeled(n_classes, num_labeled, num_per_class, num_total,
+                                                               train_indices)
+
+    return labeled_indices, unlabeled_indices
+
+
+def split_label_unlabeled(_n_classes, num_labeled, num_per_class, num_total, train_indices):
     labeled_indices = []
     unlabeled_indices = []
-
-    # num_labeled_per_class = num_labeled // _n_classes
-
     for c, num_class in zip(range(_n_classes), num_per_class):
-        num_labeled_this_class = max(int(num_labeled * (num_class / num_total)), 1)
+        num_labeled_this_class = max(int(num_labeled * num_class), 1)
         labeled_indices.append(train_indices[c][:num_labeled_this_class])
         unlabeled_indices.append(train_indices[c][num_labeled_this_class:])
-
     labeled_indices = np.hstack(labeled_indices)
     unlabeled_indices = np.hstack(unlabeled_indices)
-    val_indices = np.hstack(val_indices)
-
-    return labeled_indices, unlabeled_indices, val_indices
+    return labeled_indices, unlabeled_indices
 
 
 class Subset(Dataset):
@@ -93,67 +157,67 @@ class Subset(Dataset):
         return len(self.indices)
 
 
-class MultiDataset(Dataset):
-    """
-    MultiDataset is used for training multiple datasets together. The lengths of the datasets
-    should be the same.
-    """
+# class MultiDataset(Dataset):
+#     """
+#     MultiDataset is used for training multiple datasets together. The lengths of the datasets
+#     should be the same.
+#     """
+#
+#     def __init__(self, datasets):
+#         super(MultiDataset, self).__init__()
+#         assert len(datasets) > 1, "You should use at least two datasets"
+#
+#         for d in datasets[1:]:
+#             assert len(d) == len(
+#                 datasets[0]
+#             ), "The lengths of the datasets should be the same."
+#
+#         self.datasets = datasets
+#         self.max_length = max([len(d) for d in self.datasets])
+#
+#     def __getitem__(self, idx):
+#         return tuple([d[idx] for d in self.datasets])
+#
+#     def __len__(self):
+#         return self.max_length
 
-    def __init__(self, datasets):
-        super(MultiDataset, self).__init__()
-        assert len(datasets) > 1, "You should use at least two datasets"
 
-        for d in datasets[1:]:
-            assert len(d) == len(
-                datasets[0]
-            ), "The lengths of the datasets should be the same."
-
-        self.datasets = datasets
-        self.max_length = max([len(d) for d in self.datasets])
-
-    def __getitem__(self, idx):
-        return tuple([d[idx] for d in self.datasets])
-
-    def __len__(self):
-        return self.max_length
-
-
-class MagicClass(object):
-    """
-    Codes are borrowed from https://github.com/PyTorchLightning/pytorch-lightning/pull/1959
-    """
-
-    def __init__(self, data) -> None:
-        self.d = data
-        self.l = max([len(d) for d in self.d])
-
-    def __len__(self) -> int:
-        return self.l
-
-    def __iter__(self):
-        if isinstance(self.d, list):
-            gen = [None for v in self.d]
-
-            # for k,v in self.d.items():
-            #     # gen[k] = itertools.cycle(v)
-            #     gen[k] = iter(v)
-
-            for i in range(self.l):
-                rv = [None for v in self.d]
-                for k, v in enumerate(self.d):
-                    # If reaching the end of the iterator, recreate one
-                    # because shuffle=True in dataloader, the iter will return a different order
-                    if i % len(v) == 0:
-                        gen[k] = iter(v)
-                    rv[k] = next(gen[k])
-
-                yield rv
-
-        else:
-            gen = itertools.cycle(self.d)
-            for i in range(self.l):
-                batch = next(gen)
-                yield batch
+# class MagicClass(object):
+#     """
+#     Codes are borrowed from https://github.com/PyTorchLightning/pytorch-lightning/pull/1959
+#     """
+#
+#     def __init__(self, data) -> None:
+#         self.d = data
+#         self.l = max([len(d) for d in self.d])
+#
+#     def __len__(self) -> int:
+#         return self.l
+#
+#     def __iter__(self):
+#         if isinstance(self.d, list):
+#             gen = [None for v in self.d]
+#
+#             # for k,v in self.d.items():
+#             #     # gen[k] = itertools.cycle(v)
+#             #     gen[k] = iter(v)
+#
+#             for i in range(self.l):
+#                 rv = [None for v in self.d]
+#                 for k, v in enumerate(self.d):
+#                     # If reaching the end of the iterator, recreate one
+#                     # because shuffle=True in dataloader, the iter will return a different order
+#                     if i % len(v) == 0:
+#                         gen[k] = iter(v)
+#                     rv[k] = next(gen[k])
+#
+#                 yield rv
+#
+#         else:
+#             gen = itertools.cycle(self.d)
+#             for i in range(self.l):
+#                 batch = next(gen)
+#                 yield batch
 
 
 class CustomSemiDataset(Dataset):
@@ -226,16 +290,13 @@ class DataModuleBase(pl.LightningDataModule):
     unlabeled_indices: ...
     val_indices: ...
 
-    def __init__(
-            self, data_root, num_workers, batch_size, num_labeled, num_val, n_classes
-    ):
+    def __init__(self, data_root, num_workers, batch_size, num_labeled, num_val):
         super().__init__()
         self.data_root = data_root
         self.batch_size = batch_size
         self.num_labeled = num_labeled
         self.num_val = num_val
-        self._n_classes = n_classes
-
+        self.n_classes = None
         self.train_set = None
         self.val_set = None
         self.test_set = None
@@ -275,11 +336,6 @@ class DataModuleBase(pl.LightningDataModule):
             num_workers=self.num_workers,
             pin_memory=True,
         )
-
-    @property
-    def n_classes(self):
-        # self._n_class should be defined in _prepare_train_dataset()
-        return self._n_classes
 
     @property
     def num_labeled_data(self):
@@ -323,16 +379,11 @@ class SemiDataModule(DataModuleBase):
             batch_size,
             num_labeled,
             num_val,
-            num_augments,
-            n_classes,
             validation_split_seed,
             is_ssl
     ):
-        super(SemiDataModule, self).__init__(
-            data_root, num_workers, batch_size, num_labeled, num_val, n_classes
-        )
+        super(SemiDataModule, self).__init__(data_root, num_workers, batch_size, num_labeled, num_val)
         self.is_ssl = is_ssl
-        self.num_augments = num_augments
         self.validation_split_seed = validation_split_seed
 
     def setup(self, stage=None):
@@ -343,24 +394,21 @@ class SemiDataModule(DataModuleBase):
         ), "Should create self.train_set in self.setup()"
 
         indices = np.arange(len(self.train_set))
-        ys = np.array([self.train_set[i][1] for i in indices], dtype=np.int64)
+        y_train = np.array([self.train_set[i][-1] for i in indices], dtype=np.int64)
 
-        self.labeled_indices, self.unlabeled_indices, self.val_indices = get_split_indices(ys, self.num_labeled,
-                                                                                           self.num_val,
-                                                                                           self._n_classes,
-                                                                                           self.validation_split_seed)
+        if self.val_set is None:
+            self.val_indices, train_indices = split_train_val(y_train,
+                                                              self.num_val,
+                                                              self.n_classes,
+                                                              self.validation_split_seed)
+            self.val_set = Subset(self.train_set, self.val_indices)
+            y_train = y_train[train_indices]
 
-        self.val_set = Subset(self.train_set, self.val_indices)
+        self.labeled_indices, self.unlabeled_indices = split_train(y_train,
+                                                                   self.num_labeled,
+                                                                   self.n_classes)
 
-        train_list = [
-            Subset(self.train_set, self.unlabeled_indices)
-            for _ in range(self.num_augments)
-        ]
-
-        train_list.insert(
-            0, Subset(self.train_set, self.labeled_indices)
-        )
-
+        train_list = [Subset(self.train_set, self.labeled_indices), Subset(self.train_set, self.unlabeled_indices)]
         self.train_set = CustomSemiDataset(train_list, self.is_ssl)
 
     def train_dataloader(self):
@@ -372,5 +420,5 @@ class SemiDataModule(DataModuleBase):
             shuffle=True,
             num_workers=self.num_workers,
             pin_memory=True,
-            drop_last=True,
+            drop_last=False,
         )

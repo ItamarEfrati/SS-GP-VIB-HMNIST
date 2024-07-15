@@ -1,7 +1,7 @@
 defaults:
   - _self_
   - datamodule: ss_tsc
-  - model: hmnist/ss_gpvib_e_cnn1d_dl_flatten
+  - model: tsc/ss_gpvib_e_inception_d_flatten
   - trainer: gpu
   - logger: wandb
   - callbacks: default
@@ -9,7 +9,7 @@ defaults:
   - debug:
   - paths: default
 #  - hparams_search: hmnist/ss_gpvib_e_cnn1d_dl_flatten
-  - metrics: vib_val
+  - metrics: tsc
   - extras: default
 
 seed: 42

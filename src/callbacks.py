@@ -1,13 +1,21 @@
+import io
+
 import pytorch_lightning as pl
 import torch
 import torchmetrics
 import torchvision
+import wandb
+from PIL import Image
+from matplotlib import pyplot as plt
+from sklearn.manifold import TSNE
 
 from torch import nn
 from typing import Optional
 from torch.optim import Optimizer
 from pytorch_lightning import Callback
 from pytorch_lightning.callbacks import EarlyStopping
+from torchvision.transforms import transforms
+from sktime.dists_kernels.dtw import DtwDist
 
 from utils.model_utils import get_confusion_matrix_image, get_precision_recall_curve_image, get_roc_curve_image
 
@@ -250,3 +258,56 @@ class LatentSpaceSaver(Callback):
         self.test_outputs.append(outputs['latent'])
         self.test_predictions.append(outputs['preds'])
         self.test_target.append(outputs['target'])
+
+
+class PlotLatentSpace(Callback):
+    def __init__(self):
+        self.val_outputs = []
+        self.val_predictions = []
+        self.val_target = []
+
+    def on_validation_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        if pl_module.current_epoch % 5 == 0:
+            # Concatenate validation outputs, predictions, and targets
+            val_outputs = torch.cat(self.val_outputs).cpu().numpy()
+            val_predictions = torch.cat(self.val_predictions).cpu().numpy()
+            val_target = torch.cat(self.val_target).cpu().numpy()
+
+            d = DtwDist(weighted=True, derivative=True)
+            distmat = d.transform(val_outputs)
+
+            # Apply t-SNE to the latent space
+            tsne = TSNE(n_components=2, metric='precomputed', init='random')
+            val_outputs_2d = tsne.fit_transform(distmat)
+
+            # Plot the 2D latent space
+            plt.figure(figsize=(10, 8))
+            scatter = plt.scatter(val_outputs_2d[:, 0], val_outputs_2d[:, 1], c=val_target, cmap='viridis', alpha=0.5)
+            plt.colorbar(scatter)
+            plt.title("Validation Latent Space")
+
+            # Convert the plot to a numpy array
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png')
+            buf.seek(0)
+            image = Image.open(buf)
+
+            pl_module.logger.experiment.log({"Validation Latent Space": wandb.Image(image)})
+
+        # Reset the stored outputs
+        self.val_outputs = []
+        self.val_predictions = []
+        self.val_target = []
+
+    def on_validation_batch_end(
+            self,
+            trainer: "pl.Trainer",
+            pl_module: "pl.LightningModule",
+            outputs,
+            batch,
+            batch_idx: int,
+            unused: int = 0,
+    ) -> None:
+        self.val_outputs.append(outputs['latent'])
+        self.val_predictions.append(outputs['preds'])
+        self.val_target.append(outputs['target'])
