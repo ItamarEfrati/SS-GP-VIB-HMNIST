@@ -18,8 +18,10 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
 
     def __init__(self,
                  is_vae,
+                 is_ssl,
                  entropy_coef,
                  data_beta,
+                 reconstruction_coef,
                  data_decoder: Decoder,
                  ignore=None,
                  **kwargs):
@@ -78,7 +80,8 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
                 kl = kl[x_reconstruction_origin.shape[0]:]
         else:
             if is_train:
-                reconstruction_error = torch.concat([label_log_likelihood, data_log_likelihood])
+                reconstruction_error = torch.concat(
+                    [label_log_likelihood, self.hparams.reconstruction_coef * data_log_likelihood])
             else:
                 reconstruction_error = label_log_likelihood
         batch_size = data_log_likelihood.shape[0]
@@ -103,7 +106,7 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
                 'latent': pz_x.mean}
 
     def get_x_y(self, batch, is_train=True):
-        if is_train:
+        if is_train and self.hparams.is_ssl:
             labeled_data, unlabeled_data = batch[0], batch[1]
             x_unlabeled = unlabeled_data[0]
             x, y = labeled_data[0], labeled_data[1]

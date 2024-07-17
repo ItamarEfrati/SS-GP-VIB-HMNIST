@@ -25,7 +25,7 @@ use_class_weight: false
 sample_during_evaluation: false
 
 # time series vib
-is_ensemble: False # always false
+is_ssl: False
 
 # gp_vib
 kernel: cauchy

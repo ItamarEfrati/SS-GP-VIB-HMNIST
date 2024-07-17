@@ -46,5 +46,6 @@ data_decoder:
 
 
 is_vae: False
-data_beta: 6
+data_beta: 0
 entropy_coef: 0
+reconstruction_coef: 0

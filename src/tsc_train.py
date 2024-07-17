@@ -52,6 +52,7 @@ def main(cfg: DictConfig) -> float:
     num_runs = 1 if cfg.get("seed") else 1
     seeds = [int.from_bytes(os.urandom(4), byteorder='little', signed=False) for _ in range(num_runs)]
     for dataset_name in [DATASETS_UCR_2018[3]]:
+        dataset_name = "SyntheticControl"
         dataset_metric_dict = defaultdict(list)
         for i, seed in enumerate(seeds):
             temp_conf = cfg.copy()

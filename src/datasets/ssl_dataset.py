@@ -408,7 +408,10 @@ class SemiDataModule(DataModuleBase):
                                                                    self.num_labeled,
                                                                    self.n_classes)
 
-        train_list = [Subset(self.train_set, self.labeled_indices), Subset(self.train_set, self.unlabeled_indices)]
+        if self.is_ssl:
+            train_list = [Subset(self.train_set, self.labeled_indices), Subset(self.train_set, self.unlabeled_indices)]
+        else:
+            train_list = [Subset(self.train_set, self.labeled_indices)]
         self.train_set = CustomSemiDataset(train_list, self.is_ssl)
 
     def train_dataloader(self):

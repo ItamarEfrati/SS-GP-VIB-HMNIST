@@ -69,6 +69,7 @@ def train(config: DictConfig) -> dict:
         utils.log_hyperparameters(hparams=hparams, metrics=dict(config.metrics.metrics))
 
     log.info("Starting training!")
+
     trainer.fit(model=model, datamodule=datamodule, ckpt_path=config.get("ckpt_path"))
 
     ckpt_path = trainer.checkpoint_callback.best_model_path
