@@ -60,7 +60,7 @@ class SemiSupervisedGPVIB(SemiSupervisedVIB, pl.LightningModule):
         return kl.sum(-1)
 
     def get_x_y(self, batch, is_train=True):
-        if is_train:
+        if is_train and self.hparams.is_ssl:
             labeled_data, unlabeled_data = batch[0], batch[1]
             x_unlabeled = unlabeled_data[0]
             x, y = labeled_data[0], labeled_data[1]

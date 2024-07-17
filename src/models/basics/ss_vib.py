@@ -34,7 +34,7 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
         self.data_decoder = data_decoder
 
     def decode(self, z, is_train=True):
-        if is_train:
+        if is_train and self.hparams.is_ssl:
             z_labeled, z_unlabeled = z[:z.shape[0] // 2], z[z.shape[0] // 2:]
             px_z = self.data_decoder(z_unlabeled)
             qy_z = self.label_decoder(z_labeled)
@@ -60,7 +60,7 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
     def run_forward_step(self, batch, is_sample, stage):
         is_train = stage is 'train'
         x, y, x_unlabeled = self.get_x_y(batch, is_train)
-        if is_train:
+        if is_train and self.hparams.is_ssl:
             x_temp = torch.concat([x, x_unlabeled])
             x_reconstruction_origin = x_unlabeled
         else:
@@ -79,7 +79,7 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
             if is_train:
                 kl = kl[x_reconstruction_origin.shape[0]:]
         else:
-            if is_train:
+            if is_train and self.hparams.is_ssl:
                 reconstruction_error = torch.concat(
                     [label_log_likelihood, self.hparams.reconstruction_coef * data_log_likelihood])
             else:
