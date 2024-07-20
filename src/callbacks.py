@@ -280,11 +280,20 @@ class PlotLatentSpace(Callback):
             tsne = TSNE(n_components=2, metric='precomputed', init='random')
             val_outputs_2d = tsne.fit_transform(distmat)
 
-            # Plot the 2D latent space
-            plt.figure(figsize=(10, 8))
-            scatter = plt.scatter(val_outputs_2d[:, 0], val_outputs_2d[:, 1], c=val_target, cmap='viridis', alpha=0.5)
-            plt.colorbar(scatter)
-            plt.title("Validation Latent Space")
+            # Create subplots
+            fig, axes = plt.subplots(1, 2, figsize=(20, 8))
+
+            # Plot the 2D latent space with true labels
+            scatter_true = axes[0].scatter(val_outputs_2d[:, 0], val_outputs_2d[:, 1], c=val_target, cmap='viridis',
+                                           alpha=0.5)
+            axes[0].set_title("Validation Latent Space with True Labels")
+            fig.colorbar(scatter_true, ax=axes[0])
+
+            # Plot the 2D latent space with validation predictions
+            scatter_pred = axes[1].scatter(val_outputs_2d[:, 0], val_outputs_2d[:, 1], c=val_predictions,
+                                           cmap='viridis', alpha=0.5)
+            axes[1].set_title("Validation Latent Space with Predictions")
+            fig.colorbar(scatter_pred, ax=axes[1])
 
             # Convert the plot to a numpy array
             buf = io.BytesIO()
@@ -292,7 +301,8 @@ class PlotLatentSpace(Callback):
             buf.seek(0)
             image = Image.open(buf)
 
-            pl_module.logger.experiment.log({"Validation Latent Space": wandb.Image(image)})
+            pl_module.logger.experiment.log(
+                {"Validation Latent Space": wandb.Image(image), "epoch": pl_module.current_epoch})
 
         # Reset the stored outputs
         self.val_outputs = []

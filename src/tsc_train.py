@@ -9,6 +9,8 @@ import pyrootutils
 import torch
 from omegaconf import DictConfig
 
+from utils import get_metric_value
+
 # project root setup
 # searches for root indicators in parent dirs, like ".git", "pyproject.toml", etc.
 # sets PROJECT_ROOT environment variable (used in `configs/paths/default.yaml`)
@@ -76,7 +78,7 @@ def main(cfg: DictConfig) -> float:
             df = pd.concat([df, std], axis=0)
             df.index.names = ['seed', 'dataset']
             df.to_csv(os.path.join(cfg.paths.output_dir, f'results_{dataset_name}.csv'))
-        print(df)
+        return get_metric_value(metric_dict=run_dict, metric_name=cfg.get("optimized_metric"))
 
 
 if __name__ == "__main__":

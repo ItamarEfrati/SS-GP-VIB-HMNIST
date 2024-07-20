@@ -10,6 +10,7 @@ from lightning.fabric.utilities.seed import reset_seed, seed_everything
 from lightning.pytorch.loggers import Logger
 
 from src import utils
+
 # from utils import datasets_utils
 
 log = utils.get_pylogger(__name__)
@@ -130,7 +131,11 @@ def evaluate(config: DictConfig, *args) -> dict:
             log.warning("Best ckpt not found! Using current weights for testing...")
             ckpt_path = None
 
-    metrics_dict = {'seed': config['seed']}
+    metrics_dict = {'seed': config['seed'],
+                    f'{config.get("optimized_metric")}': trainer.checkpoint_callback.best_model_score}
+
+    print(f'{config.get("optimized_metric")}')
+    print(trainer.checkpoint_callback.best_model_score)
 
     log.info("Starting testing!")
     reset_seed()
