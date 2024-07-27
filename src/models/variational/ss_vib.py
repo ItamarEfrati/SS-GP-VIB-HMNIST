@@ -1,14 +1,8 @@
-import os
-
 import torch
-import torchmetrics
 import pytorch_lightning as pl
 
-from torch.distributions import MultivariateNormal
-
-from models.basics.vib import VIB
+from models.variational.vib import VIB
 from models.decoders import Decoder
-from src.models.abstracts.abstract_vib import AbstractVIB
 
 
 class SemiSupervisedVIB(VIB, pl.LightningModule):

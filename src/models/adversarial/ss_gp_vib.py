@@ -1,12 +1,12 @@
 import torch
 import pytorch_lightning as pl
 
-from models.basics.vib import VIB
+from models.variational.ss_vib import SemiSupervisedVIB
 from models.encoders import TimeSeriesDataEncoder
 from utils.model_utils import get_gp_prior
 
 
-class GPVIB(VIB, pl.LightningModule):
+class SemiSupervisedGPVIB(SemiSupervisedVIB, pl.LightningModule):
 
     def __init__(self,
                  kernel,
@@ -34,7 +34,7 @@ class GPVIB(VIB, pl.LightningModule):
                                       device=self.device)
         return self.prior
 
-    def forward(self, x, is_ensemble=False, is_sample=True):
+    def forward(self, x, is_sample=True, is_train=True):
         pz_x = self.encode(x)
         if is_sample:
             z = pz_x.rsample((self.num_samples,))  # (num_samples, B, z_dim)
@@ -44,30 +44,27 @@ class GPVIB(VIB, pl.LightningModule):
         # transpose time and z_dim dimensions
         # z is now a latent series of shape (batch, num_samples, time_length, z_dim)
         z = z.permute(1, 0, 3, 2)
-        qy_z = self.decode(z, is_ensemble)
-        return pz_x, qy_z
+        qy_z, px_z, qy_z_full = self.decode(z, is_train)
+        return pz_x, qy_z, px_z, qy_z_full
 
     def encode(self, x):
+        # transpose features and time dimensions to run cnn over time per feature
+        # x = x.transpose(-2, -1)
         x = self.timeseries_encoder(x)
         pz_x = self.encoder(x)
         return pz_x
-
-    def decode(self, z, is_ensemble=False):
-        return self.label_decoder(z, is_ensemble)
 
     def compute_kl_divergence(self, pz_x):
         kl = torch.distributions.kl.kl_divergence(pz_x, self.r_z())
         kl = torch.where(torch.torch.isfinite(kl), kl, torch.zeros_like(kl))
         return kl.sum(-1)
 
-    def compute_log_likelihood(self, qy_z, y):
-        nll = torch.nn.NLLLoss(reduction='none', weight=self.class_weight)
-        log_likelihood = -nll(qy_z.logits, y.long())
-        return log_likelihood.sum(-1) if self.hparams.is_ensemble else log_likelihood
-
-    def get_x_y(self, batch):
-        x = batch[0]
-        y = batch[-1]
-        if self.hparams.is_ensemble:
-            y = torch.tile(y.reshape(-1, 1), (1, x.shape[1]))
-        return x, y
+    def get_x_y(self, batch, is_train=True):
+        if is_train and self.hparams.is_ssl:
+            labeled_data, unlabeled_data = batch[0], batch[1]
+            x_unlabeled = unlabeled_data[0]
+            x, y = labeled_data[0], labeled_data[1]
+        else:
+            x_unlabeled = None
+            x, y = batch[0], batch[1]
+        return x, y, x_unlabeled

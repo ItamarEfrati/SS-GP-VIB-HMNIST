@@ -1,7 +1,7 @@
 import torch
 import pytorch_lightning as pl
 
-from models.basics.ss_vib import SemiSupervisedVIB
+from models.variational.ss_vib import SemiSupervisedVIB
 from models.encoders import TimeSeriesDataEncoder
 from utils.model_utils import get_gp_prior
 
