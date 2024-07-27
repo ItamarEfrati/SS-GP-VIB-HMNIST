@@ -24,6 +24,7 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
                                                                                          'data_decoder']
         kwargs['ignore'] = ignore
         super().__init__(**kwargs)
+        assert is_vae != is_ssl, "vae cannot be ssl"
         self.data_beta = data_beta if data_beta != -1 else self.beta
         self.data_decoder = data_decoder
 
@@ -65,23 +66,23 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
         kl = self.compute_kl_divergence(pz_x)
         label_log_likelihood = self.compute_log_likelihood(qy_z, y)
 
-        log_values = {'mean_label_negative_log_likelihood': (-label_log_likelihood).mean()}
         data_log_likelihood = self.compute_log_likelihood(px_z, x_reconstruction_origin, is_multinomial=False)
         data_log_likelihood = data_log_likelihood.sum(dim=[1, 2])
         if self.hparams.is_vae:
             reconstruction_error = data_log_likelihood
-            if is_train:
-                kl = kl[x_reconstruction_origin.shape[0]:]
+            kl = kl * self.data_beta
+        elif self.hparams.is_ssl and is_train:
+            reconstruction_error = torch.concat(
+                [label_log_likelihood, self.hparams.reconstruction_coef * data_log_likelihood])
+            batch_size = data_log_likelihood.shape[0]
+            kl[batch_size:] = kl[batch_size:] * self.data_beta
+            kl[:batch_size] = kl[:batch_size] * self.hparams.beta
         else:
-            if is_train and self.hparams.is_ssl:
-                reconstruction_error = torch.concat(
-                    [label_log_likelihood, self.hparams.reconstruction_coef * data_log_likelihood])
-            else:
-                reconstruction_error = label_log_likelihood
-        batch_size = data_log_likelihood.shape[0]
-        kl[batch_size:] = kl[batch_size:] * self.data_beta
-        kl[:batch_size] = kl[:batch_size] * self.hparams.beta
-        log_values['mean_data_negative_log_likelihood'] = -data_log_likelihood.mean()
+            reconstruction_error = label_log_likelihood
+            kl = kl * self.data_beta
+
+        log_values = {'mean_label_negative_log_likelihood': (-label_log_likelihood).mean(),
+                      'mean_data_negative_log_likelihood': -data_log_likelihood.mean()}
 
         entropy = qy_z_full.entropy().mean()
         log_values['qy_z_entropy'] = entropy

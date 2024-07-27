@@ -12,4 +12,4 @@ dataset_name: Yoga
 cross_val_split_index: 0
 is_data_missing: False
 validation_split_seed: 42
-is_ssl: False
+is_ssl: ${model.is_ssl}

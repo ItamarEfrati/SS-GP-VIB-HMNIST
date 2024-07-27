@@ -255,9 +255,8 @@ class TimeSeriesDataEncoder(Encoder):
             hidden_sizes.append(hidden_size)
 
         layers += get_linear_layers(hidden_sizes + [3 * encoding_size])
+        layers += [Permute((0, 2, 1))]
         self.net = nn.Sequential(*layers)
-
-        # self.im = ImagePreprocessor((-1, 28, 28, 1), hidden_sizes=(1, 256, 1), kernel_size=(3, 3))
 
     def __call__(self, x):
         return self.net(x)
