@@ -7,6 +7,7 @@ import hydra
 import pandas as pd
 import pyrootutils
 import torch
+from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig
 
 from utils import get_metric_value
@@ -41,23 +42,33 @@ DATASETS_UCR_2018 = ["AllGestureWiimoteX", "AllGestureWiimoteY", "AllGestureWiim
                      "TwoPatterns", "UMD", "UWaveGestureLibraryAll", "UWaveGestureLibraryX", "UWaveGestureLibraryY",
                      "UWaveGestureLibraryZ", "Wafer", "Wine", "WordSynonyms", "Worms", "WormsTwoClass", "Yoga"]
 
+DATASETS_UEA = ['ArticularyWordRecognition', 'AtrialFibrillation', 'BasicMotions', 'Cricket', 'DuckDuckGeese',
+                'Epilepsy', 'EthanolConcentration', 'ERing', 'FaceDetection', 'FingerMovements',
+                'HandMovementDirection', 'Handwriting', 'Heartbeat', 'Libras', 'LSST', 'MotorImagery', 'NATOPS',
+                'PenDigits', 'PEMS-SF', 'PhonemeSpectra', 'RacketSports', 'SelfRegulationSCP1', 'SelfRegulationSCP2',
+                'StandWalkJump', 'UWaveGestureLibrary', 'EigenWorms']
+
 IS_HYPER_SEARCH = False
 
 
 @hydra.main(version_base="1.2", config_path=os.path.join(root, "configs"), config_name="train_tsc.yaml")
 def main(cfg: DictConfig) -> float:
-    # imports can be nested inside @hydra.main to optimize tab completion
-    # https://github.com/facebookresearch/hydra/issues/934
     from src.tasks.train_ts_task import evaluate
-
     torch.set_float32_matmul_precision('high')
-    num_runs = 1 if cfg.get("seed") else 1
+    num_runs = cfg.num_runs
     seeds = [int.from_bytes(os.urandom(4), byteorder='little', signed=False) for _ in range(num_runs)]
-    for dataset_name in [DATASETS_UCR_2018[3]]:
-        dataset_name = "SyntheticControl"
+    datamodule_name = HydraConfig.get().runtime.choices.datamodule
+    datasets = DATASETS_UCR_2018 if datamodule_name == 'tsc/ucr' else DATASETS_UEA
+
+    if cfg.dataset_name:
+        datasets = [cfg.dataset_name]
+
+    for dataset_name in datasets:
         dataset_metric_dict = defaultdict(list)
         for i, seed in enumerate(seeds):
             temp_conf = cfg.copy()
+
+
             temp_conf['seed'] = seed
             run_dict = evaluate(temp_conf, dataset_name)
             dataset_metric_dict['dataset'].append(dataset_name)
@@ -78,7 +89,6 @@ def main(cfg: DictConfig) -> float:
             df = pd.concat([df, std], axis=0)
             df.index.names = ['seed', 'dataset']
             df.to_csv(os.path.join(cfg.paths.output_dir, f'results_{dataset_name}.csv'))
-        return get_metric_value(metric_dict=run_dict, metric_name=cfg.get("optimized_metric"))
 
 
 if __name__ == "__main__":

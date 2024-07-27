@@ -143,9 +143,9 @@ class Subset(Dataset):
         self.indices = indices
         self.transform = transform
 
-        nums = [0 for _ in range(10)]
-        for i in range(len(self.indices)):
-            nums[self.dataset[self.indices[i]][1]] += 1
+        # nums = [0 for _ in range(10)]
+        # for i in range(len(self.indices)):
+        #     nums[self.dataset[self.indices[i]][1]] += 1
 
     def __getitem__(self, idx):
         data, label = self.dataset[self.indices[idx]]
@@ -155,69 +155,6 @@ class Subset(Dataset):
 
     def __len__(self):
         return len(self.indices)
-
-
-# class MultiDataset(Dataset):
-#     """
-#     MultiDataset is used for training multiple datasets together. The lengths of the datasets
-#     should be the same.
-#     """
-#
-#     def __init__(self, datasets):
-#         super(MultiDataset, self).__init__()
-#         assert len(datasets) > 1, "You should use at least two datasets"
-#
-#         for d in datasets[1:]:
-#             assert len(d) == len(
-#                 datasets[0]
-#             ), "The lengths of the datasets should be the same."
-#
-#         self.datasets = datasets
-#         self.max_length = max([len(d) for d in self.datasets])
-#
-#     def __getitem__(self, idx):
-#         return tuple([d[idx] for d in self.datasets])
-#
-#     def __len__(self):
-#         return self.max_length
-
-
-# class MagicClass(object):
-#     """
-#     Codes are borrowed from https://github.com/PyTorchLightning/pytorch-lightning/pull/1959
-#     """
-#
-#     def __init__(self, data) -> None:
-#         self.d = data
-#         self.l = max([len(d) for d in self.d])
-#
-#     def __len__(self) -> int:
-#         return self.l
-#
-#     def __iter__(self):
-#         if isinstance(self.d, list):
-#             gen = [None for v in self.d]
-#
-#             # for k,v in self.d.items():
-#             #     # gen[k] = itertools.cycle(v)
-#             #     gen[k] = iter(v)
-#
-#             for i in range(self.l):
-#                 rv = [None for v in self.d]
-#                 for k, v in enumerate(self.d):
-#                     # If reaching the end of the iterator, recreate one
-#                     # because shuffle=True in dataloader, the iter will return a different order
-#                     if i % len(v) == 0:
-#                         gen[k] = iter(v)
-#                     rv[k] = next(gen[k])
-#
-#                 yield rv
-#
-#         else:
-#             gen = itertools.cycle(self.d)
-#             for i in range(self.l):
-#                 batch = next(gen)
-#                 yield batch
 
 
 class CustomSemiDataset(Dataset):
