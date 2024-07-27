@@ -1,14 +1,14 @@
 defaults:
   - _self_
-  - datamodule: ss_tsc
-  - model: tsc/ss_gpvib_e_inception_d_flatten
+  - datamodule: tsc/uea
+  - model: tsc/gpvib_e_inception_d_flatten
   - trainer: gpu
   - logger: wandb
   - callbacks: default
   - hydra: default
   - debug:
   - paths: default
-#  - hparams_search: hmnist/ss_gpvib_e_cnn1d_dl_flatten
+  #  - hparams_search: hmnist/ss_gpvib_e_cnn1d_dl_flatten
   - metrics: tsc
   - extras: default
 
@@ -21,8 +21,11 @@ optimized_metric: ${metrics.optimize}
 # lightning chooses best weights based on metric specified in checkpoint callback
 ckpt_path: null # path to checkpoint model
 
+
 # name of the run, should be used along with experiment mode
-datamodule_name: tsc
+datamodule_name: uea
 model_name: ss_gpvib_e_cnn1d_dl_flatten
+num_runs: 30
+dataset_name:
 
 
