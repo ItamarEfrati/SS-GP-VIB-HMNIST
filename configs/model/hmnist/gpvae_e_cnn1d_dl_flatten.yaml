@@ -1,4 +1,4 @@
-_target_: src.models.basics.gpvae.GPVAE
+_target_: src.models.variational.ss_gp_vib.SemiSupervisedGPVIB
 
 timeseries_encoder:
   _target_: src.models.encoders.TimeSeriesDataEncoder
@@ -35,6 +35,18 @@ encoder:
   encoding_size: ${model.timeseries_encoder.encoding_size}
 
 decoder:
+  _target_: src.models.decoders.FlattenMultinomialDecoder
+  _partial_: True
+  z_dim: ${model.timeseries_encoder.encoding_size}
+  hidden_size_1: -1
+  hidden_size_2: -1
+  hidden_size_3: -1
+  num_samples: ${model.num_samples}
+  output_size: ${model.num_classes}
+  is_binary: False
+
+
+data_decoder:
   _target_: src.models.decoders.BernoulliDecoder
   z_dim: ${model.timeseries_encoder.encoding_size}
   hidden_size_1: 256
@@ -62,13 +74,18 @@ scheduler:
 
 # vib
 num_classes: 10
-beta: 0.8
+alpha: -1 # scaling factor for positive class weight
+is_vae: True
+is_ssl: false
+beta: 0
+data_beta: 0.8
+entropy_coef: 0
+reconstruction_coef: 1
 num_samples: 1
+class_weight_file:
 monitor_metric: ${callbacks.model_checkpoint.monitor} # for the scheduler
+use_class_weight: false
 sample_during_evaluation: false
-
-# time series vib
-is_ensemble: False # always false
 
 # gp_vib
 kernel: cauchy

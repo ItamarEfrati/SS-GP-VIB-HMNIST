@@ -6,62 +6,6 @@ from torch.utils.data import DataLoader, Dataset
 import pytorch_lightning as pl
 
 
-# def get_split_indices(labels, num_labeled, num_val, _n_classes, seed=None):
-#     """
-#     Split the train data into the following three set:
-#     (1) labeled data
-#     (2) unlabeled data
-#     (3) val data
-#
-#     Data distribution of the three sets are same as which of the
-#     original training data.
-#
-#     Inputs:
-#         labels: (np.int) array of labels
-#         num_labeled: (int)
-#         num_val: (int)
-#         _n_classes: (int)
-#
-#
-#     Return:
-#         the three indices for the three sets
-#     """
-#     if seed is not None:
-#         np.random.seed(seed)
-#     val_indices = []
-#     train_indices = []
-#
-#     num_total = len(labels)
-#     num_per_class = []
-#     for c in range(_n_classes):
-#         num_per_class.append((labels == c).sum().astype(int))
-#
-#     # obtain val indices, data evenly drawn from each class
-#     for c, num_class in zip(range(_n_classes), num_per_class):
-#         val_this_class = max(int(num_val * (num_class / num_total)), 1)
-#         class_indices = np.where(labels == c)[0]
-#         np.random.shuffle(class_indices)
-#         val_indices.append(class_indices[:val_this_class])
-#         train_indices.append(class_indices[val_this_class:])
-#
-#     # split data into labeled and unlabeled
-#     labeled_indices = []
-#     unlabeled_indices = []
-#
-#     # num_labeled_per_class = num_labeled // _n_classes
-#
-#     for c, num_class in zip(range(_n_classes), num_per_class):
-#         num_labeled_this_class = max(int(num_labeled * (num_class / num_total)), 1)
-#         labeled_indices.append(train_indices[c][:num_labeled_this_class])
-#         unlabeled_indices.append(train_indices[c][num_labeled_this_class:])
-#
-#     labeled_indices = np.hstack(labeled_indices)
-#     unlabeled_indices = np.hstack(unlabeled_indices)
-#     val_indices = np.hstack(val_indices)
-#
-#     return labeled_indices, unlabeled_indices, val_indices
-
-
 def split_train_val(train_labels, num_val, n_classes, seed=None):
     if seed is not None:
         np.random.seed(seed)
@@ -339,7 +283,8 @@ class SemiDataModule(DataModuleBase):
                                                               self.n_classes,
                                                               self.validation_split_seed)
             self.val_set = Subset(self.train_set, self.val_indices)
-            y_train = y_train[train_indices]
+            from itertools import chain
+            y_train = y_train[list(chain(*train_indices))]
 
         self.labeled_indices, self.unlabeled_indices = split_train(y_train,
                                                                    self.num_labeled,

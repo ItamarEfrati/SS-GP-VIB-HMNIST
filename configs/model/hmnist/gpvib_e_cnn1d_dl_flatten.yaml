@@ -1,4 +1,4 @@
-_target_: src.models.basics.gpvib.GPVIB
+_target_: src.models.basics.ss_gp_vib.SemiSupervisedGPVIB
 
 defaults:
   - hmnist_default.yaml
@@ -9,10 +9,10 @@ timeseries_encoder:
   ts_embedding_size: 784
   n_cnn_layers: 1
   out_channels_1: 256
-  out_channels_2: 256
+  out_channels_2: -1
   out_channels_3: -1
   out_channels_4: -1
-  kernel_size_1: 4
+  kernel_size_1: 3
   kernel_size_2: -1
   kernel_size_3: -1
   kernel_size_4: -1
@@ -25,7 +25,7 @@ timeseries_encoder:
   dropout_3: -1
   dropout_4: -1
   hidden_size_1: 256
-  hidden_size_2: -1
+  hidden_size_2: 256
   hidden_size_3: -1
   timeseries_size: 10
   encoding_size: 256
@@ -46,3 +46,20 @@ decoder:
   hidden_size_3: -1
   num_samples: ${model.num_samples}
   output_size: ${model.num_classes}
+  is_binary: False
+
+
+data_decoder:
+  _target_: src.models.decoders.BernoulliDecoder
+  z_dim: ${model.timeseries_encoder.encoding_size}
+  hidden_size_1: 256
+  hidden_size_2: 256
+  hidden_size_3: 256
+  num_samples: ${model.num_samples}
+  output_size: ${model.timeseries_encoder.ts_embedding_size}
+
+
+is_vae: False
+data_beta: 0.02053791150275769
+entropy_coef: 0
+reconstruction_coef: 8.847698290427234
