@@ -48,8 +48,6 @@ DATASETS_UEA = ['ArticularyWordRecognition', 'AtrialFibrillation', 'BasicMotions
                 'PenDigits', 'PEMS-SF', 'PhonemeSpectra', 'RacketSports', 'SelfRegulationSCP1', 'SelfRegulationSCP2',
                 'StandWalkJump', 'UWaveGestureLibrary', 'EigenWorms']
 
-IS_HYPER_SEARCH = False
-
 
 @hydra.main(version_base="1.2", config_path=os.path.join(root, "configs"), config_name="train_tsc.yaml")
 def main(cfg: DictConfig) -> float:
@@ -58,16 +56,16 @@ def main(cfg: DictConfig) -> float:
     num_runs = cfg.num_runs
     seeds = [int.from_bytes(os.urandom(4), byteorder='little', signed=False) for _ in range(num_runs)]
     datamodule_name = HydraConfig.get().runtime.choices.datamodule
+    is_hyper_search = 'hparams_search' in HydraConfig.get().runtime.choices.keys()
     datasets = DATASETS_UCR_2018 if datamodule_name == 'tsc/ucr' else DATASETS_UEA
 
-    if cfg.dataset_name:
-        datasets = [cfg.dataset_name]
+    if cfg.datamodule.dataset_name:
+        datasets = [cfg.datamodule.dataset_name]
 
     for dataset_name in datasets:
         dataset_metric_dict = defaultdict(list)
         for i, seed in enumerate(seeds):
             temp_conf = cfg.copy()
-
 
             temp_conf['seed'] = seed
             run_dict = evaluate(temp_conf, dataset_name)
@@ -75,7 +73,7 @@ def main(cfg: DictConfig) -> float:
 
             for k, v in run_dict.items():
                 dataset_metric_dict[k].append(float(v))
-            if IS_HYPER_SEARCH:
+            if is_hyper_search:
                 return run_dict['test_Accuracy']
             df = pd.DataFrame.from_dict(dataset_metric_dict).set_index(['seed', 'dataset'])
             median = df.groupby('dataset').median()

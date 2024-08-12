@@ -1,4 +1,4 @@
-_target_: src.models.basics.ss_gp_vib.SemiSupervisedGPVIB
+_target_: src.models.variational.ss_gp_vib.SemiSupervisedGPVIB
 _partial_: True
 
 defaults:
@@ -45,7 +45,8 @@ data_decoder:
   num_samples: ${model.num_samples}
 
 
-is_vae: True
+is_vae: false
+is_ssl: true
 data_beta: 0.8
 entropy_coef: 0
 reconstruction_coef: 1

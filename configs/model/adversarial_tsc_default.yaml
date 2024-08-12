@@ -17,12 +17,14 @@ scheduler:
 # vib
 num_classes: -1
 alpha: -1
-beta: 0
 num_samples: 2
 class_weight_file:
 monitor_metric: ${callbacks.early_stopping.monitor} # for the scheduler
 use_class_weight: false
 sample_during_evaluation: false
+
+# time series vib
+is_ssl: True
 
 # gp_vib
 kernel: cauchy

@@ -151,8 +151,6 @@ class SemiSupervisedTSC(SemiDataModule):
         X = X.transpose(0, 2, 1)
 
         self.train_size, self.time_series_size, self.channels = self._build_splits(X, y)
-        # self.shape = x_train.shape
-        # self.n_classes = len(np.unique(np.concatenate((y_train, y_test), axis=0)))
 
 
 if __name__ == '__main__':

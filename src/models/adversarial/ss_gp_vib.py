@@ -1,7 +1,7 @@
 import torch
 import pytorch_lightning as pl
 
-from models.variational.ss_vib import SemiSupervisedVIB
+from models.adversarial.ss_vib import SemiSupervisedVIB
 from models.encoders import TimeSeriesDataEncoder
 from utils.model_utils import get_gp_prior
 
@@ -25,6 +25,7 @@ class SemiSupervisedGPVIB(SemiSupervisedVIB, pl.LightningModule):
         self.z_dim_time_length = self.timeseries_encoder.encoding_series_size + timeseries_addition
         self.encoder = self.encoder(z_dim_time_length=self.z_dim_time_length)
         self.label_decoder = self.label_decoder(z_dim_time_length=self.z_dim_time_length)
+        self.discriminator = self.discriminator(z_dim_time_length=self.z_dim_time_length)
 
     def r_z(self):
         if self.prior is None:
@@ -44,20 +45,14 @@ class SemiSupervisedGPVIB(SemiSupervisedVIB, pl.LightningModule):
         # transpose time and z_dim dimensions
         # z is now a latent series of shape (batch, num_samples, time_length, z_dim)
         z = z.permute(1, 0, 3, 2)
-        qy_z, px_z, qy_z_full = self.decode(z, is_train)
-        return pz_x, qy_z, px_z, qy_z_full
+        qy_z, qy_z_full = self.decode(z, is_train)
+        return pz_x, qy_z, qy_z_full
 
     def encode(self, x):
         # transpose features and time dimensions to run cnn over time per feature
-        # x = x.transpose(-2, -1)
         x = self.timeseries_encoder(x)
         pz_x = self.encoder(x)
         return pz_x
-
-    def compute_kl_divergence(self, pz_x):
-        kl = torch.distributions.kl.kl_divergence(pz_x, self.r_z())
-        kl = torch.where(torch.torch.isfinite(kl), kl, torch.zeros_like(kl))
-        return kl.sum(-1)
 
     def get_x_y(self, batch, is_train=True):
         if is_train and self.hparams.is_ssl:
@@ -68,3 +63,24 @@ class SemiSupervisedGPVIB(SemiSupervisedVIB, pl.LightningModule):
             x_unlabeled = None
             x, y = batch[0], batch[1]
         return x, y, x_unlabeled
+
+    # def configure_optimizers(self):
+    #     params = list(self.timeseries_encoder.parameters()) + list(self.label_decoder.parameters())
+    #     optim_ae = self.hparams.optimizer(params=params)
+    #     self.discriminator_optimizer = self.hparams.optimizer(params=self.discriminator.parameters())
+    #
+    #     optimizers = [optim_ae, self.discriminator_optimizer]
+    #
+    #     if self.hparams.scheduler:
+    #         lr_scheduler_ae = self.hparams.scheduler(optimizer=optim_ae)
+    #         lr_scheduler_disc = self.hparams.scheduler(optimizer=self.discriminator_optimizer)
+    #
+    #         lr_schedulers = [
+    #             {"scheduler": lr_scheduler_ae, "monitor": self.hparams.monitor_metric, "interval": 'epoch',
+    #              "frequency": 1},
+    #             {"scheduler": lr_scheduler_disc, "monitor": self.hparams.monitor_metric, "interval": 'epoch',
+    #              "frequency": 1}
+    #         ]
+    #         return optimizers, lr_schedulers
+    #
+    #     return optimizers

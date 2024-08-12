@@ -21,7 +21,7 @@ hydra:
 
     # storage URL to persist optimization results
     # for example, you can use SQLite if you set 'sqlite:///example.db'
-    storage: sqlite:///beta_gamma_delta_zeta.db
+    storage: sqlite:///4_coef.db
 
     # name of the study to persist optimization results
     study_name: SyntheticControl_sll
@@ -45,7 +45,7 @@ hydra:
 
     # define hyperparameter search space
     params:
-      model.beta: interval(0.01, 10)
-      model.data_beta: interval(0.01, 10)
-      model.entropy_coef: interval(0.01, 10)
-      model.reconstruction_coef: interval(0.01, 10)
+      model.beta: range(0.01, 1, step=0.001)
+      model.data_beta: range(0.01, 1, step=0.001)
+      model.entropy_coef: range(0.01, 1, step=0.001)
+      model.reconstruction_coef: range(0.01, 1, step=0.001)

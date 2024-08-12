@@ -21,8 +21,8 @@ early_stopping:
   min_delta: 0.001 # minimum change in the monitored metric needed to qualify as an improvement
   check_on_train_epoch_end: False # whether to run early stopping at the end of the training epoch
 
-log_latent_embeddings:
-  _target_: src.callbacks.PlotLatentSpace
+#log_latent_embeddings:
+#  _target_: src.callbacks.PlotLatentSpace
 
 #
 #init_parameters:

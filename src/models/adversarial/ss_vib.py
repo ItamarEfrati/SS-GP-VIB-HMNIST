@@ -1,8 +1,7 @@
 import torch
 import pytorch_lightning as pl
 
-from models.variational.vib import VIB
-from models.decoders import Decoder
+from models.adversarial.vib import VIB
 
 
 class SemiSupervisedVIB(VIB, pl.LightningModule):
@@ -14,9 +13,6 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
                  is_vae,
                  is_ssl,
                  entropy_coef,
-                 data_beta,
-                 reconstruction_coef,
-                 data_decoder: Decoder,
                  ignore=None,
                  **kwargs):
         ignore = ['encoder', 'decoder', 'data_decoder'] if ignore is None else ignore + ['encoder',
@@ -24,21 +20,17 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
                                                                                          'data_decoder']
         kwargs['ignore'] = ignore
         super().__init__(**kwargs)
-        self.data_beta = data_beta if data_beta != -1 else self.beta
-        self.data_decoder = data_decoder
 
     def decode(self, z, is_train=True):
         if is_train and self.hparams.is_ssl:
             z_labeled, z_unlabeled = z[:z.shape[0] // 2], z[z.shape[0] // 2:]
-            px_z = self.data_decoder(z_unlabeled)
             qy_z = self.label_decoder(z_labeled)
             qy_z_full = self.label_decoder(z)
         else:
             qy_z = self.label_decoder(z)
-            px_z = self.data_decoder(z)
             qy_z_full = qy_z
 
-        return qy_z, px_z, qy_z_full
+        return qy_z, qy_z_full
 
     def forward(self, x, is_sample=True, is_train=True):
         pz_x = self.encode(x)
@@ -48,8 +40,8 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
             z = pz_x.loc.unsqueeze(0)
         # transpose batch shape with num samples shape (B, num_samples, z_dim)
         z = z.transpose(0, 1)
-        qy_z, px_z, qy_z_full = self.decode(z, is_train)
-        return pz_x, qy_z, px_z, qy_z_full
+        qy_z, qy_z_full = self.decode(z, is_train)
+        return pz_x, qy_z, qy_z_full
 
     def run_forward_step(self, batch, is_sample, stage):
         is_train = stage is 'train'
@@ -60,44 +52,44 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
         else:
             x_temp = x
             x_reconstruction_origin = x
-        pz_x, qy_z, px_z, qy_z_full = self.forward(x_temp, is_sample, is_train)
+        pz_x, qy_z, qy_z_full = self.forward(x_temp, is_sample, is_train)
 
-        kl = self.compute_kl_divergence(pz_x)
+        adversarial_loss, discriminator_loss = self.compute_adversarial_loss(pz_x)
         label_log_likelihood = self.compute_log_likelihood(qy_z, y)
 
         log_values = {'mean_label_negative_log_likelihood': (-label_log_likelihood).mean()}
-        data_log_likelihood = self.compute_log_likelihood(px_z, x_reconstruction_origin, is_multinomial=False)
-        data_log_likelihood = data_log_likelihood.sum(dim=[1, 2])
-        if self.hparams.is_vae:
-            reconstruction_error = data_log_likelihood
-            if is_train:
-                kl = kl[x_reconstruction_origin.shape[0]:]
-        else:
-            if is_train and self.hparams.is_ssl:
-                reconstruction_error = torch.concat(
-                    [label_log_likelihood, self.hparams.reconstruction_coef * data_log_likelihood])
-            else:
-                reconstruction_error = label_log_likelihood
-        batch_size = data_log_likelihood.shape[0]
-        kl[batch_size:] = kl[batch_size:] * self.data_beta
-        kl[:batch_size] = kl[:batch_size] * self.hparams.beta
-        log_values['mean_data_negative_log_likelihood'] = -data_log_likelihood.mean()
 
+        # if self.hparams.is_vae:
+        #     reconstruction_error = data_log_likelihood
+        #     # if is_train:
+        #     #     kl = kl[x_reconstruction_origin.shape[0]:]
+        # else:
+        #     if is_train and self.hparams.is_ssl:
+        #         reconstruction_error = torch.concat(
+        #             [label_log_likelihood, self.hparams.reconstruction_coef * data_log_likelihood])
+        #     else:
+        #         reconstruction_error = label_log_likelihood
+
+        # kl[batch_size:] = kl[batch_size:] * self.data_beta
+        # kl[:batch_size] = kl[:batch_size] * self.hparams.beta
         entropy = qy_z_full.entropy().mean()
         log_values['qy_z_entropy'] = entropy
-        elbo = reconstruction_error - kl
-        elbo = elbo.mean() - self.hparams.entropy_coef * entropy
+        # elbo = label_log_likelihood - adversarial_loss
+        elbo = label_log_likelihood
+        elbo = elbo.mean() - self.hparams.entropy_coef * entropy + discriminator_loss
         loss = -elbo
         probabilities, y_pred = self.get_y_pred(qy_z)
         log_values['loss'] = loss
-        log_values['kl_mean'] = kl.mean()
+        log_values['adversarial_loss'] = adversarial_loss.mean()
+        log_values['discriminator_loss'] = discriminator_loss.mean()
         return {'log': log_values,
                 'preds': y_pred,
                 'probs': probabilities,
                 'target': y,
-                'reconstruction': px_z.mean,
                 'original': x_reconstruction_origin,
-                'latent': pz_x.mean}
+                'latent': pz_x.mean,
+                'discriminator_loss': discriminator_loss,
+                'loss': loss}
 
     def get_x_y(self, batch, is_train=True):
         if is_train and self.hparams.is_ssl:

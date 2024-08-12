@@ -59,11 +59,14 @@ def _get_model(config, datamodule):
     model.keywords['encoder'].keywords['encoding_size'] = encoding_size
     model.keywords['decoder'].keywords['z_dim'] = encoding_size
     model.keywords['decoder'].keywords['output_size'] = datamodule.n_classes
-    model.keywords['data_decoder'].keywords['output_length'] = datamodule.time_series_size
-    model.keywords['data_decoder'].keywords['output_n_channels'] = datamodule.channels
-    model.keywords['data_decoder'].keywords['latent_n_channels'] = encoding_size
-    model.keywords['data_decoder'].keywords['latent_length'] = time_series_encoding_size
-    model.keywords['data_decoder'] = model.keywords['data_decoder']()
+    if 'discriminator' in model.keywords.keys():
+        model.keywords['discriminator'].keywords['z_dim'] = encoding_size
+    else:
+        model.keywords['data_decoder'].keywords['output_length'] = datamodule.time_series_size
+        model.keywords['data_decoder'].keywords['output_n_channels'] = datamodule.channels
+        model.keywords['data_decoder'].keywords['latent_n_channels'] = encoding_size
+        model.keywords['data_decoder'].keywords['latent_length'] = time_series_encoding_size
+        model.keywords['data_decoder'] = model.keywords['data_decoder']()
     model = model(num_classes=datamodule.n_classes)
     return model
 

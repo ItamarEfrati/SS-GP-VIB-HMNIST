@@ -1,7 +1,7 @@
 defaults:
   - _self_
-  - datamodule: hmnist/ss_hmnist
-  - model: hmnist/gpvae_e_cnn1d_dl_flatten
+  - datamodule: hmnist/hmnist
+  - model: tsc/adversarial_ss_gpvib_e_inception_d_flatten
   - trainer: gpu
   - logger: wandb
   - callbacks: default

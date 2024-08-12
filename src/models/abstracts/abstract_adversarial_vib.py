@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 
 from abc import ABC, abstractmethod
 
@@ -11,13 +12,13 @@ class AbstractAdversarialVIB(ABC):
     def __init__(self,
                  encoder: Encoder,
                  decoder: Decoder,
-                 beta: float,
+                 discriminator: Decoder,
                  num_samples: int
                  ):
         super(AbstractAdversarialVIB, self).__init__()
         self.encoder = encoder
         self.label_decoder = decoder
-        self.beta = beta
+        self.discriminator = discriminator
         self.num_samples = num_samples
 
         self.prior = None
@@ -41,9 +42,34 @@ class AbstractAdversarialVIB(ABC):
         return self.label_decoder(z)
 
     def compute_adversarial_loss(self, q):
-        kl = torch.distributions.kl.kl_divergence(q, self.r_z())
-        kl = torch.where(torch.isfinite(kl), kl, torch.zeros_like(kl))
-        return kl
+        # Sample from the prior distribution
+        z_prior = self.r_z().sample((q.batch_shape[0], 1)) # Assume q is the latent distribution
+
+        # Get discriminator outputs
+        d_z_prior = self.discriminator(z_prior)  # Discriminator output for prior samples
+        d_z_q = self.discriminator(q.sample().unsqueeze(1))  # Discriminator output for encoded samples
+
+        # Adversarial loss for the autoencoder
+        bce = torch.nn.BCELoss()
+
+        # Labels for the loss
+        real_labels = F.one_hot(torch.ones(q.batch_shape[0], device=z_prior.device, dtype=torch.long), 2).float()
+        fake_labels = F.one_hot(torch.zeros(d_z_q.batch_shape[0], device=z_prior.device, dtype=torch.long), 2).float()
+
+        # nll = torch.nn.NLLLoss(reduction='none')
+        # log_likelihood = -nll(qy_z.logits, y.long())
+
+        # Discriminator loss (real and fake)
+        loss_real = bce(d_z_prior.mean, real_labels)
+        loss_fake = bce(d_z_q.mean, fake_labels)
+        discriminator_loss = loss_real + loss_fake
+
+        # Generator loss (fool the discriminator)
+        generator_loss = bce(d_z_q.mean, real_labels)
+
+        # Return generator loss (which is the adversarial loss for the autoencoder)
+        return generator_loss, discriminator_loss
+
 
     def forward(self, x, is_sample):
         pz_x = self.encode(x)

@@ -24,7 +24,7 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
                                                                                          'data_decoder']
         kwargs['ignore'] = ignore
         super().__init__(**kwargs)
-        assert is_vae != is_ssl, "vae cannot be ssl"
+        assert not (is_vae and is_ssl), "vae cannot be ssl"
         self.data_beta = data_beta if data_beta != -1 else self.beta
         self.data_decoder = data_decoder
 

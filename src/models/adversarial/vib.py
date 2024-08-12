@@ -28,8 +28,10 @@ class VIB(AbstractAdversarialVIB, pl.LightningModule):
                  **kwargs):
         super().__init__(**kwargs)
         ignore = ['encoder', 'decoder'] if ignore is None else ignore + ['encoder', 'decoder']
+        self.discriminator_optimizer = None
         self.save_hyperparameters(ignore=ignore)
         self.train_outputs = []
+        # self.automatic_optimization = False  # Disable automatic optimization
 
         # metrics
         task = "binary" if num_classes == 2 else "multiclass"
@@ -70,26 +72,29 @@ class VIB(AbstractAdversarialVIB, pl.LightningModule):
         pz_x, qy_z = self.forward(x, is_sample=is_sample)
 
         log_likelihood = self.compute_log_likelihood(qy_z, y)
-        dic = self.compute_adversarial_loss(pz_x)
+        adversarial_loss, discriminator_loss = self.compute_adversarial_loss(pz_x)
 
-        elbo = log_likelihood - self.hparams.beta * kl
-        elbo = elbo.mean()
+        elbo = log_likelihood
+        elbo = elbo.mean() + discriminator_loss
         loss = -elbo
         probabilities, y_pred = self.get_y_pred(qy_z)
         return {'log': {'loss': loss,
-                        'kl_mean': kl.mean(),
+                        'discriminator_loss': discriminator_loss.mean,
+                        'adversarial_loss': adversarial_loss.mean(),
                         'mean_negative_log_likelihood': (-log_likelihood).mean()},
                 'preds': y_pred,
                 'probs': probabilities,
                 'target': y,
-                'latent': pz_x.mean}
+                'latent': pz_x.mean,
+                'loss': loss}
 
     def step(self, batch, stage):
         is_sample = any([stage is 'train',
                          all([stage is not 'train', self.hparams.sample_during_evaluation])])
         forward_outputs = self.run_forward_step(batch, is_sample, stage)
         log_dict = forward_outputs.pop('log')
-        forward_outputs['loss'] = log_dict['loss']
+        # forward_outputs['loss'] = log_dict['loss']
+        # forward_outputs['discriminator_loss'] = log_dict['discriminator_loss']
         log_dict = {f'{stage}_{k}': v for k, v in log_dict.items()}
         self.log_dict(log_dict, prog_bar=False)
         return forward_outputs
@@ -118,36 +123,16 @@ class VIB(AbstractAdversarialVIB, pl.LightningModule):
     # region Pytorch lightning overwrites
 
     def configure_optimizers(self):
-        # Define optimizer for the autoencoder (encoder + decoder)
-        optim_ae = self.hparams.optimizer(params=list(self.encoder.parameters()) + list(self.decoder.parameters()))
-
-        # Define optimizer for the discriminator
-        optim_disc = self.hparams.optimizer(params=self.discriminator.parameters())
-
-        optimizers = [optim_ae, optim_disc]
-
+        optimizer = self.hparams.optimizer(params=self.parameters())
         if self.hparams.scheduler:
-            # Define learning rate schedulers for both optimizers
-            lr_scheduler_ae = self.hparams.scheduler(optimizer=optim_ae)
-            lr_scheduler_disc = self.hparams.scheduler(optimizer=optim_disc)
-
-            lr_schedulers = [
-                {
-                    "scheduler": lr_scheduler_ae,
-                    "monitor": self.hparams.monitor_metric,
-                    "interval": 'epoch',
-                    "frequency": 1
-                },
-                {
-                    "scheduler": lr_scheduler_disc,
-                    "monitor": self.hparams.monitor_metric,
-                    "interval": 'epoch',
-                    "frequency": 1
-                }
-            ]
-            return optimizers, lr_schedulers
-
-        return optimizers
+            lr_scheduler = {
+                "scheduler": self.hparams.scheduler(optimizer=optimizer),
+                "monitor": self.hparams.monitor_metric,
+                "interval": 'epoch',
+                "frequency": 1
+            }
+            return [optimizer], [lr_scheduler]
+        return optimizer
 
     def setup(self, stage=None):
         if self.hparams.use_class_weight:
@@ -159,6 +144,18 @@ class VIB(AbstractAdversarialVIB, pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         step_output = self.step(batch, stage='train')
+
+        # opt_ae, opt_disc = self.optimizers()  # Retrieve the optimizers
+        # # Optimize the discriminator
+        # opt_disc.zero_grad()
+        # self.manual_backward(step_output['discriminator_loss'])
+        # opt_disc.step()
+        #
+        # # Optimize the autoencoder (generator)
+        # opt_ae.zero_grad()
+        # self.manual_backward(step_output['loss'])
+        # opt_ae.step()
+
         self.train_metrics.update(step_output['probs'], step_output['target'])
         self.log_dict(self.train_metrics, on_epoch=True, prog_bar=False)
         self.log('lr', self.optimizers().optimizer.param_groups[0]['lr'], on_step=True, prog_bar=True)

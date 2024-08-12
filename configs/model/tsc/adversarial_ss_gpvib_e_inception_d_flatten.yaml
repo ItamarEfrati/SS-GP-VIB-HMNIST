@@ -1,8 +1,8 @@
-_target_: src.models.variational.ss_gp_vib.SemiSupervisedGPVIB
+_target_: src.models.adversarial.ss_gp_vib.SemiSupervisedGPVIB
 _partial_: True
 
 defaults:
-  - tsc_default.yaml
+  - adversarial_tsc_default.yaml
 
 timeseries_encoder:
   _target_: src.models.encoders.InceptionEncoder
@@ -35,18 +35,16 @@ decoder:
   output_size: ${model.num_classes}
 
 
-data_decoder:
-  _target_: src.models.decoders.GaussianDataDecoder
+discriminator:
+  _target_: src.models.decoders.FlattenMultinomialDecoder
   _partial_: True
-  output_n_channels:
-  output_length:
-  latent_n_channels:
-  latent_length:
+  z_dim: ${model.timeseries_encoder.encoding_size}
+  hidden_size_1: -1
+  hidden_size_2: -1
+  hidden_size_3: -1
   num_samples: ${model.num_samples}
+  output_size: 2
 
 
-is_vae: true
-is_ssl: false
-data_beta: 0.8
-entropy_coef: 0
-reconstruction_coef: 1
+is_vae: False
+entropy_coef: 1

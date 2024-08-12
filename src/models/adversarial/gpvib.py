@@ -1,7 +1,7 @@
 import torch
 import pytorch_lightning as pl
 
-from models.variational.vib import VIB
+from models.adversarial.vib import VIB
 from models.encoders import TimeSeriesDataEncoder
 from utils.model_utils import get_gp_prior
 
@@ -54,11 +54,6 @@ class GPVIB(VIB, pl.LightningModule):
 
     def decode(self, z, is_ensemble=False):
         return self.label_decoder(z, is_ensemble)
-
-    def compute_kl_divergence(self, pz_x):
-        kl = torch.distributions.kl.kl_divergence(pz_x, self.r_z())
-        kl = torch.where(torch.torch.isfinite(kl), kl, torch.zeros_like(kl))
-        return kl.sum(-1)
 
     def compute_log_likelihood(self, qy_z, y):
         nll = torch.nn.NLLLoss(reduction='none', weight=self.class_weight)

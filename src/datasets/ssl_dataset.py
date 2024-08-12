@@ -65,7 +65,7 @@ def split_label_unlabeled(_n_classes, num_labeled, num_per_class, num_total, tra
     labeled_indices = []
     unlabeled_indices = []
     for c, num_class in zip(range(_n_classes), num_per_class):
-        num_labeled_this_class = max(int(num_labeled * num_class), 1)
+        num_labeled_this_class = int(num_labeled * num_class)
         labeled_indices.append(train_indices[c][:num_labeled_this_class])
         unlabeled_indices.append(train_indices[c][num_labeled_this_class:])
     labeled_indices = np.hstack(labeled_indices)
@@ -87,10 +87,6 @@ class Subset(Dataset):
         self.indices = indices
         self.transform = transform
 
-        # nums = [0 for _ in range(10)]
-        # for i in range(len(self.indices)):
-        #     nums[self.dataset[self.indices[i]][1]] += 1
-
     def __getitem__(self, idx):
         data, label = self.dataset[self.indices[idx]]
         if self.transform is not None:
@@ -111,9 +107,6 @@ class CustomSemiDataset(Dataset):
         self.max_length = max(len(d) for d in self.datasets) if self.is_ssl else self.min_length
 
     def __getitem__(self, i):
-        # return tuple(d[i] for d in self.datasets)
-
-        # self.map_indices will reload when calling self.__len__()
         if self.is_ssl:
             return tuple(d[m[i]] for d, m in zip(self.datasets, self.map_indices))
         else:
@@ -282,7 +275,7 @@ class SemiDataModule(DataModuleBase):
                                                               self.num_val,
                                                               self.n_classes,
                                                               self.validation_split_seed)
-            self.val_set = Subset(self.train_set, self.val_indices)
+            self.val_set = CustomSemiDataset([Subset(self.train_set, self.val_indices)], False)
             from itertools import chain
             y_train = y_train[list(chain(*train_indices))]
 
