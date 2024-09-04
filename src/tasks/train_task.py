@@ -89,4 +89,5 @@ def train(config: DictConfig) -> dict:
         log.info(f"Best ckpt path: {ckpt_path}")
         metric_dict.update(trainer.callback_metrics)
 
+    os.remove(ckpt_path)
     return metric_dict

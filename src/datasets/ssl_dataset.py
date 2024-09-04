@@ -270,15 +270,6 @@ class SemiDataModule(DataModuleBase):
         indices = np.arange(len(self.train_set))
         y_train = np.array([self.train_set[i][-1] for i in indices], dtype=np.int64)
 
-        if self.val_set is None:
-            self.val_indices, train_indices = split_train_val(y_train,
-                                                              self.num_val,
-                                                              self.n_classes,
-                                                              self.validation_split_seed)
-            self.val_set = CustomSemiDataset([Subset(self.train_set, self.val_indices)], False)
-            from itertools import chain
-            y_train = y_train[list(chain(*train_indices))]
-
         self.labeled_indices, self.unlabeled_indices = split_train(y_train,
                                                                    self.num_labeled,
                                                                    self.n_classes)

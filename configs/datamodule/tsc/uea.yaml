@@ -8,7 +8,7 @@ batch_size: 64
 num_workers: 1
 num_labeled: 1
 num_val: 0 # ignore
-dataset_name: BasicMotions
+dataset_name: PEMS-SF
 cross_val_split_index: 0
 is_data_missing: False
 validation_split_seed: 42

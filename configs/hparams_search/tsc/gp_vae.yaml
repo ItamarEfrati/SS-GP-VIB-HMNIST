@@ -21,10 +21,10 @@ hydra:
 
     # storage URL to persist optimization results
     # for example, you can use SQLite if you set 'sqlite:///example.db'
-    storage: sqlite:///4_coef.db
+    storage: sqlite:///${.study_name}.db
 
     # name of the study to persist optimization results
-    study_name: SyntheticControl_sll
+    study_name: ${datamodule.dataset_name}_${model.name}_${size}
 
     # number of parallel workers
     n_jobs: 1
@@ -33,7 +33,7 @@ hydra:
     direction: maximize
 
     # total number of runs that will be executed
-    n_trials: 300
+    n_trials: 120
 
     # choose Optuna hyperparameter sampler
     # you can choose bayesian sampler (tpe), random search (without optimization), grid sampler, and others
@@ -41,11 +41,9 @@ hydra:
     sampler:
       _target_: optuna.samplers.TPESampler
       seed: 42
-      n_startup_trials: 200 # number of random sampling runs before optimization starts
+      n_startup_trials: 75 # number of random sampling runs before optimization starts
 
     # define hyperparameter search space
     params:
-      model.beta: range(0.01, 1, step=0.001)
-      model.data_beta: range(0.01, 1, step=0.001)
-      model.entropy_coef: range(0.01, 1, step=0.001)
-      model.reconstruction_coef: range(0.01, 1, step=0.001)
+      model.data_beta: range(0.01, 10, step=0.01)
+      model.timeseries_encoder.encoding_series_size: choice(2, 4, 8, 16, 32)

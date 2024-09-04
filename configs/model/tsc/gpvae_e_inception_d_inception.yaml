@@ -1,4 +1,4 @@
-name: ss_gp-vib
+name: ss_gp-vae_inception
 _target_: src.models.variational.ss_gp_vib.SemiSupervisedGPVIB
 _partial_: True
 
@@ -12,7 +12,7 @@ timeseries_encoder:
   encoding_size: 128 # how many series in the lattent space
   encoding_series_size: -1 # the length of each series in the latent space
   number_of_filters: 32 # there are 4 kernels so final channel size is 128
-  bottleneck_size: 32
+  bottleneck_size: ${model.timeseries_encoder.number_of_filters}
   use_bottleneck: true
   depth: 1
 
@@ -48,9 +48,9 @@ data_decoder:
   num_samples: ${model.num_samples}
 
 
-is_vae: false
-is_ssl: true
+is_vae: true
+is_ssl: false
 data_beta: 1
-beta: 1
-entropy_coef: 1
-reconstruction_coef: 1
+beta: 0
+entropy_coef: 0
+reconstruction_coef: 0

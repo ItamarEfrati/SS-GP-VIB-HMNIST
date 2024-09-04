@@ -23,7 +23,8 @@ class HealingMNIST(pl.LightningDataModule):
                  val_split: int,
                  test_split: int,
                  is_test_only: bool,
-                 is_data_missing: bool):
+                 is_data_missing: bool,
+                 **kwargs):
         """
 
         :param download_dir: the directory to save the data

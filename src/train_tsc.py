@@ -10,8 +10,6 @@ import torch
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig
 
-from utils import get_metric_value
-
 # project root setup
 # searches for root indicators in parent dirs, like ".git", "pyproject.toml", etc.
 # sets PROJECT_ROOT environment variable (used in `configs/paths/default.yaml`)
@@ -19,6 +17,7 @@ from utils import get_metric_value
 # adds root dir to the PYTHONPATH (so this file can be run from any place)
 # https://github.com/ashleve/pyrootutils
 root = pyrootutils.setup_root(__file__, dotenv=True, pythonpath=True)
+print(root)
 
 DATASETS_UCR_2018 = ["AllGestureWiimoteX", "AllGestureWiimoteY", "AllGestureWiimoteZ", "ArrowHead", "BME", "Car", "CBF",
                      "Chinatown", "ChlorineConcentration", "CinCECGTorso", "Computers", "CricketX", "CricketY",
@@ -53,8 +52,11 @@ DATASETS_UEA = ['ArticularyWordRecognition', 'AtrialFibrillation', 'BasicMotions
 def main(cfg: DictConfig) -> float:
     from src.tasks.train_ts_task import evaluate
     torch.set_float32_matmul_precision('high')
-    num_runs = cfg.num_runs
-    seeds = [int.from_bytes(os.urandom(4), byteorder='little', signed=False) for _ in range(num_runs)]
+    if cfg.seed:
+        seeds = [cfg.seed]
+    else:
+        num_runs = cfg.num_runs
+        seeds = [int.from_bytes(os.urandom(4), byteorder='little', signed=False) for _ in range(num_runs)]
     datamodule_name = HydraConfig.get().runtime.choices.datamodule
     is_hyper_search = 'hparams_search' in HydraConfig.get().runtime.choices.keys()
     datasets = DATASETS_UCR_2018 if datamodule_name == 'tsc/ucr' else DATASETS_UEA
@@ -74,7 +76,7 @@ def main(cfg: DictConfig) -> float:
             for k, v in run_dict.items():
                 dataset_metric_dict[k].append(float(v))
             if is_hyper_search:
-                return run_dict['test_Accuracy']
+                return run_dict['val_ACC']
             df = pd.DataFrame.from_dict(dataset_metric_dict).set_index(['seed', 'dataset'])
             median = df.groupby('dataset').median()
             median.index = pd.MultiIndex.from_tuples(list(map(lambda x: ('median', x), median.index)))

@@ -1,20 +1,20 @@
 defaults:
   - _self_
-  - datamodule: hmnist/hmnist
-  - model: tsc/adversarial_ss_gpvib_e_inception_d_flatten
-  - trainer: gpu
+  - datamodule:
+  - model: hmnist/ss_gpvib_e_cnn1d_dl_flatten
+  - trainer: gpu2
   - logger: wandb
-  - callbacks: default
+  - callbacks: hmnist
   - hydra: default
   - debug:
   - paths: default
-#  - hparams_search: hmnist/ss_gpvib_e_cnn1d_dl_flatten
+  - hparams_search:
   - metrics: vib_val
   - extras: default
 
 seed: 42
-mode: debug
-run_test: False
+mode: experiment
+run_test: True
 optimized_metric: ${metrics.optimize}
 
 # evaluate on test set, using best model weights achieved during training
@@ -22,7 +22,9 @@ optimized_metric: ${metrics.optimize}
 ckpt_path: null # path to checkpoint model
 
 # name of the run, should be used along with experiment mode
-datamodule_name: tsc
-model_name: ss_gpvib_e_cnn1d_dl_flatten
+datamodule_name: hmnist
+model_name: ${model.name}
+size:
+num_labeled:
 
 

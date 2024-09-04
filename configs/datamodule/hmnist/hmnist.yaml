@@ -9,3 +9,4 @@ val_split: 55000
 test_split: 5000
 is_test_only: False
 is_data_missing: False
+dataset_name: hmnist

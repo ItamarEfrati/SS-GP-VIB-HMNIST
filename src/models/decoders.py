@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Bernoulli, Normal
 
+from models.encoders import InceptionModule
 from utils.model_utils import get_linear_layers, Permute, Reshape
 
 from torch.distributions.multinomial import Multinomial
@@ -131,6 +132,86 @@ class GaussianDataDecoder(DataDecoder):
         logits = self.net(x)
         logits = logits.reshape(-1, x.shape[1], self.output_length, self.output_n_channels)
         mean = self.get_probs(logits)
+        return Normal(loc=mean, scale=torch.ones(mean.shape, device=mean.device))
+
+
+class InceptionDecoder(nn.Module):
+    def __init__(self,
+                 encoded_n_channels,
+                 encoded_series_size,
+                 output_n_channels,
+                 output_length,
+                 number_of_filters,
+                 bottleneck_size,
+                 use_bottleneck,
+                 num_samples,
+                 kernel_size=40,
+
+                 depth=1
+                 ):
+        super().__init__()
+        self.encoded_n_channels = encoded_n_channels
+        self.encoded_series_size = encoded_series_size
+        self.output_n_channels = output_n_channels
+        self.output_length = output_length
+        self.number_of_filters = number_of_filters
+        self.bottleneck_size = bottleneck_size
+        self.use_bottleneck = use_bottleneck
+        self.num_samples = num_samples
+        self.kernels = [kernel_size // 4, kernel_size // 2, kernel_size]
+        self.depth = depth
+        self.input_layer = nn.Sequential(Reshape((-1, encoded_series_size, encoded_n_channels)), Permute((0, 2, 1)))
+        self.blocks = nn.ModuleList()
+        self.residual_blocks = nn.ModuleList()
+        self._build_network()
+
+    def _build_network(self):
+        for d in range(self.depth):
+            current_block = self._get_next_block(d)
+            self.blocks.append(current_block)
+            residual_block = self._get_next_residual_block(d)
+            self.residual_blocks.append(residual_block)
+
+        self.last_block = nn.Sequential(
+            nn.ConvTranspose1d(4 * self.number_of_filters, self.output_n_channels, kernel_size=1),
+            nn.ConvTranspose1d(self.output_n_channels, self.output_n_channels,
+                               kernel_size=self.output_length - self.encoded_series_size + 1,
+                               stride=1,
+                               padding=0),
+            Permute((0, 2, 1)))
+
+    def _get_next_residual_block(self, d):
+        residual_block = nn.Sequential()
+        in_channels = self.encoded_n_channels if d == self.depth - 1 else 4 * self.number_of_filters
+        residual_block.add_module(f'residual {d + 1} Transpose CNN',
+                                  nn.ConvTranspose1d(in_channels=in_channels, out_channels=4 * self.number_of_filters,
+                                                     kernel_size=1, padding=0))
+        residual_block.add_module(f'residual {d + 1} batch norm', nn.BatchNorm1d(4 * self.number_of_filters))
+        return residual_block
+
+    def _get_next_block(self, d):
+        current_block = nn.Sequential()
+        for i in range(3):
+            in_size = 4 * self.number_of_filters if i != 0 else self.encoded_n_channels
+            use_bottleneck = self.use_bottleneck if i == 2 else True
+            inception_module = InceptionModule(in_size, self.number_of_filters, self.kernels[i],
+                                               use_bottleneck=use_bottleneck,
+                                               bottleneck_size=self.bottleneck_size)
+            current_block.add_module(f'inception_module_{i + 1}', inception_module)
+        return current_block
+
+    def forward(self, x):
+        shape = x.shape
+        x = self.input_layer(x)
+        residual_input = x
+        for i in range(len(self.blocks)):
+            x = self.blocks[i](x)
+            residual = self.residual_blocks[i](residual_input)
+            residual_input = x
+            x = F.relu(x + residual)
+        x = self.last_block(x)
+        logits = x.reshape(-1, shape[1], self.output_length, self.output_n_channels)
+        mean = logits.mean(1)
         return Normal(loc=mean, scale=torch.ones(mean.shape, device=mean.device))
 
 

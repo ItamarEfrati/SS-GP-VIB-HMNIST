@@ -12,7 +12,8 @@ class AbstractVIB(ABC):
                  encoder: Encoder,
                  decoder: Decoder,
                  beta: float,
-                 num_samples: int
+                 num_samples: int,
+                 **kwargs
                  ):
         super(AbstractVIB, self).__init__()
         self.encoder = encoder

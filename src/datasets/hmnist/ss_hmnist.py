@@ -22,7 +22,8 @@ class SemiSupervisedHMnist(SemiDataModule):
             num_labeled,
             num_val,
             validation_split_seed,
-            is_ssl
+            is_ssl,
+            **kwargs
     ):
 
         super(SemiSupervisedHMnist, self).__init__(
@@ -59,16 +60,17 @@ class SemiSupervisedHMnist(SemiDataModule):
         # missing and mask, 1 is an evidence for missing data, True is observed
 
         data_name_format = "x_{}_miss" if self.hparams.is_data_missing else 'x_{}_full'
-        train_tensors = []
-        test_tensors = []
 
-        train_tensors.append(tensor(data[data_name_format.format('train')]))
-        test_tensors.append(tensor(data[data_name_format.format('test')]))
+        train_tensors = [tensor(data[data_name_format.format('train')])[:self.hparams.num_val]]
+        val_tensors = [tensor(data[data_name_format.format('train')])[self.hparams.num_val:]]
+        test_tensors = [tensor(data[data_name_format.format('test')])]
 
-        train_tensors.append(tensor(data['y_train']))
+        train_tensors.append(tensor(data['y_train'])[:self.hparams.num_val])
+        val_tensors.append(tensor(data['y_train'])[self.hparams.num_val:])
         test_tensors.append(tensor(data['y_test']))
 
         self.train_set = TensorDataset(*train_tensors)
+        self.val_set = TensorDataset(*val_tensors)
         self.test_set = TensorDataset(*test_tensors)
 
 

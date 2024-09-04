@@ -77,9 +77,12 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
             batch_size = data_log_likelihood.shape[0]
             kl[batch_size:] = kl[batch_size:] * self.data_beta
             kl[:batch_size] = kl[:batch_size] * self.hparams.beta
+
+            qy_z_full
+
         else:
             reconstruction_error = label_log_likelihood
-            kl = kl * self.data_beta
+            kl = kl * self.beta
 
         log_values = {'mean_label_negative_log_likelihood': (-label_log_likelihood).mean(),
                       'mean_data_negative_log_likelihood': -data_log_likelihood.mean()}

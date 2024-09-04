@@ -1,4 +1,5 @@
-_target_: src.models.basics.ss_gp_vib.SemiSupervisedGPVIB
+name: gp-vib
+_target_: src.models.variational.ss_gp_vib.SemiSupervisedGPVIB
 
 defaults:
   - hmnist_default.yaml
@@ -60,6 +61,8 @@ data_decoder:
 
 
 is_vae: False
-data_beta: 0.02053791150275769
+is_ssl: False
+beta: 1
+data_beta: 0
 entropy_coef: 0
-reconstruction_coef: 8.847698290427234
+reconstruction_coef: 0
