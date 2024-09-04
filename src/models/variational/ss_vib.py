@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 import pytorch_lightning as pl
 
 from models.variational.vib import VIB
@@ -16,6 +17,7 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
                  entropy_coef,
                  data_beta,
                  reconstruction_coef,
+                 triplet_loss_coef,
                  data_decoder: Decoder,
                  ignore=None,
                  **kwargs):
@@ -68,6 +70,7 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
 
         data_log_likelihood = self.compute_log_likelihood(px_z, x_reconstruction_origin, is_multinomial=False)
         data_log_likelihood = data_log_likelihood.sum(dim=[1, 2])
+        triplet_loss = 0
         if self.hparams.is_vae:
             reconstruction_error = data_log_likelihood
             kl = kl * self.data_beta
@@ -78,7 +81,9 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
             kl[batch_size:] = kl[batch_size:] * self.data_beta
             kl[:batch_size] = kl[:batch_size] * self.hparams.beta
 
-            qy_z_full
+            # triplet loss
+            triplet_loss = self.get_triplet_loss(batch_size, qy_z_full,
+                                                 pz_x.mean[:batch_size], pz_x.mean[batch_size:], y)
 
         else:
             reconstruction_error = label_log_likelihood
@@ -90,7 +95,7 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
         entropy = qy_z_full.entropy().mean()
         log_values['qy_z_entropy'] = entropy
         elbo = reconstruction_error - kl
-        elbo = elbo.mean() - self.hparams.entropy_coef * entropy
+        elbo = elbo.mean() - self.hparams.entropy_coef * entropy + self.hparams.triplet_loss_coef * triplet_loss
         loss = -elbo
         probabilities, y_pred = self.get_y_pred(qy_z)
         log_values['loss'] = loss
@@ -102,6 +107,55 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
                 'reconstruction': px_z.mean,
                 'original': x_reconstruction_origin,
                 'latent': pz_x.mean}
+
+    def get_triplet_loss(self, batch_size, qy_z_full, z_labeled, z_unlabeled, y_labeled):
+        rows_with_values_gt_0_9 = torch.any(qy_z_full.mean[batch_size:] > 0.2, dim=1)
+        row_indices = torch.nonzero(rows_with_values_gt_0_9).squeeze()
+
+        # Step 2: Check if any row meets the condition
+        if row_indices.numel() == 0:
+            print("No rows have a value greater than 0.9.")
+            filtered_argmax = None  # or handle it as you need
+        else:
+            # Get row-wise argmax for the rows where condition is met
+            row_argmax = torch.argmax(qy_z_full.mean[batch_size:], dim=1)
+            filtered_argmax = row_argmax[rows_with_values_gt_0_9]
+
+        anchors = z_unlabeled[rows_with_values_gt_0_9]
+
+        selected_positive_samples = []
+        selected_negative_samples = []
+
+        for class_idx, anchor in zip(filtered_argmax, anchors):
+            # Filter x_labeled to get all samples with the matching class (positive samples)
+            matching_indices = torch.nonzero(y_labeled == class_idx).squeeze()
+
+            if matching_indices.numel() > 0:
+                # Randomly select one positive sample from the matching class
+                random_pos_idx = torch.randint(0, matching_indices.numel(), (1,))
+                selected_positive_sample = z_labeled[matching_indices[random_pos_idx]]
+            else:
+                selected_positive_sample = None  # Handle cases where no match is found
+
+            # Filter x_labeled to get all samples with a different class (negative samples)
+            non_matching_indices = torch.nonzero(y_labeled != class_idx).squeeze()
+
+            if non_matching_indices.numel() > 0:
+                # Randomly select one negative sample from a different class
+                random_neg_idx = torch.randint(0, non_matching_indices.numel(), (1,))
+                selected_negative_sample = z_labeled[non_matching_indices[random_neg_idx]]
+            else:
+                selected_negative_sample = None  # Handle cases where no match is found
+
+            selected_positive_samples.append(selected_positive_sample)
+            selected_negative_samples.append(selected_negative_sample)
+
+        positive = torch.stack(selected_positive_samples).squeeze()
+        negative = torch.stack(selected_negative_samples).squeeze()
+
+        margin = 1.0  # Define margin for the triplet loss
+        triplet_loss = F.triplet_margin_loss(anchors, positive, negative, margin=margin, p=2)
+        return triplet_loss
 
     def get_x_y(self, batch, is_train=True):
         if is_train and self.hparams.is_ssl:

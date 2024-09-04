@@ -52,10 +52,10 @@ def _get_model(config, datamodule):
     model.keywords['timeseries_encoder'].keywords['input_n_channels'] = datamodule.channels
     n_filters = model.keywords['timeseries_encoder'].keywords['number_of_filters']
     encoding_size = get_encoding_dimension(n_filters)
-    # time_series_encoding_size = get_encoding_series_size(datamodule.train_size)
-    time_series_encoding_size = model.keywords['timeseries_encoder'].keywords['encoding_series_size']
+    time_series_encoding_size = get_encoding_series_size(datamodule.train_size)
+    # time_series_encoding_size = model.keywords['timeseries_encoder'].keywords['encoding_series_size']
     model.keywords['timeseries_encoder'].keywords['encoding_size'] = encoding_size
-    # model.keywords['timeseries_encoder'].keywords['encoding_series_size'] = time_series_encoding_size
+    model.keywords['timeseries_encoder'].keywords['encoding_series_size'] = time_series_encoding_size
     model.keywords['timeseries_encoder'] = model.keywords['timeseries_encoder']()
     model.keywords['encoder'].keywords['encoding_size'] = encoding_size
     model.keywords['decoder'].keywords['z_dim'] = encoding_size

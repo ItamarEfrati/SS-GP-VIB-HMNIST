@@ -37,14 +37,12 @@ decoder:
 
 
 data_decoder:
-  _target_: src.models.decoders.InceptionDecoder
+  _target_: src.models.decoders.GaussianDataDecoder
   _partial_: True
   output_n_channels:
-  number_of_filters: 32 # there are 4 kernels so final channel size is 128
-  bottleneck_size: 32
-  use_bottleneck: true
-  encoded_n_channels: ${model.timeseries_encoder.encoding_size}
-  encoded_series_size: ${model.timeseries_encoder.encoding_series_size}
+  output_length:
+  latent_n_channels:
+  latent_length:
   num_samples: ${model.num_samples}
 
 
