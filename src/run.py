@@ -6,7 +6,7 @@ import subprocess
 d = {
     "gp-vib-full": "python src/train_tsc.py "
                    "datamodule=tsc/uea "
-                   "dataset_name={} "
+                   "datamodule.dataset_name={} "
                    "size=full "
                    "num_labeled=1 "
                    "datamodule=tsc/uea size=full "
@@ -15,7 +15,7 @@ d = {
                    "callbacks=default",
     "gp-vib-full_0.4": "python src/train_tsc.py "
                        "datamodule=tsc/ssl_uea "
-                       "dataset_name={} "
+                       "datamodule.dataset_name={} "
                        "size=full_0.4 "
                        "num_labeled=0.4 "
                        "datamodule=tsc/uea size=full "
@@ -24,7 +24,7 @@ d = {
                        "callbacks=default",
     "gp-vib-full_0.25": "python src/train_tsc.py "
                         "datamodule=tsc/ssl_uea "
-                        "dataset_name={} "
+                        "datamodule.dataset_name={} "
                         "size=full_0.25 "
                         "num_labeled=0.25 "
                         "datamodule=tsc/uea size=full "
@@ -33,7 +33,7 @@ d = {
                         "callbacks=default",
     "gp-vib-full_0.1": "python src/train_tsc.py "
                        "datamodule=tsc/ssl_uea "
-                       "dataset_name={} "
+                       "datamodule.dataset_name={} "
                        "size=full_0.1 "
                        "num_labeled=0.1 "
                        "datamodule=tsc/uea size=full "
@@ -42,7 +42,7 @@ d = {
                        "callbacks=default",
     "gp-vib-full_0.07": "python src/train_tsc.py "
                         "datamodule=tsc/ssl_uea "
-                        "dataset_name={} "
+                        "datamodule.dataset_name={} "
                         "size=full_0.07 "
                         "num_labeled=0.07 "
                         "datamodule=tsc/uea size=full "
@@ -51,7 +51,7 @@ d = {
                         "callbacks=default",
     "gp-vib-full_0.05": "python src/train_tsc.py "
                         "datamodule=tsc/ssl_uea "
-                        "dataset_name={} "
+                        "datamodule.dataset_name={} "
                         "size=full_0.05 "
                         "num_labeled=0.05 "
                         "datamodule=tsc/uea size=full "
@@ -60,7 +60,7 @@ d = {
                         "callbacks=default",
     "ss-gp-vib-0.4": "python src/train_tsc.py "
                      "datamodule=tsc/ssl_uea "
-                     "dataset_name={} "
+                     "datamodule.dataset_name={} "
                      "size=ss_0.4 "
                      "num_labeled=0.4 "
                      "datamodule=tsc/uea size=full "
@@ -69,7 +69,7 @@ d = {
                      "callbacks=default",
     "ss-gp-vib_0.25": "python src/train_tsc.py "
                       "datamodule=tsc/ssl_uea "
-                      "dataset_name={} "
+                      "datamodule.dataset_name={} "
                       "size=ss_0.25 "
                       "num_labeled=0.25 "
                       "datamodule=tsc/uea size=full "
@@ -78,7 +78,7 @@ d = {
                       "callbacks=default",
     "ss-vib_0.1": "python src/train_tsc.py "
                   "datamodule=tsc/ssl_uea "
-                  "dataset_name={} "
+                  "datamodule.dataset_name={} "
                   "size=ss_0.1 "
                   "num_labeled=0.1 "
                   "datamodule=tsc/uea size=full "
@@ -87,7 +87,7 @@ d = {
                   "callbacks=default",
     "ss-vib_0.07": "python src/train_tsc.py "
                    "datamodule=tsc/ssl_uea "
-                   "dataset_name={} "
+                   "datamodule.dataset_name={} "
                    "size=ss_0.07 "
                    "num_labeled=0.07 "
                    "datamodule=tsc/uea size=full "
@@ -96,7 +96,7 @@ d = {
                    "callbacks=default",
     "ss-vib-ss_0.05": "python src/train_tsc.py "
                       "datamodule=tsc/ssl_uea "
-                      "dataset_name={} "
+                      "datamodule.dataset_name={} "
                       "size=ss_0.05 "
                       "num_labeled=0.05 "
                       "datamodule=tsc/uea size=full "
@@ -126,7 +126,7 @@ def run_script(command):
 
 # Main execution
 def main():
-    max_concurrent = 5  # Limit the number of concurrent processes
+    max_concurrent = 1  # Limit the number of concurrent processes
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_concurrent) as executor:
         futures = {executor.submit(run_script, script): script for script in scripts}

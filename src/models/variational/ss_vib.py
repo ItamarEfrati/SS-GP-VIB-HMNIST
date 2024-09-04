@@ -109,7 +109,7 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
                 'latent': pz_x.mean}
 
     def get_triplet_loss(self, batch_size, qy_z_full, z_labeled, z_unlabeled, y_labeled):
-        rows_with_values_gt_0_9 = torch.any(qy_z_full.mean[batch_size:] > 0.2, dim=1)
+        rows_with_values_gt_0_9 = torch.any(qy_z_full.mean[batch_size:] > 0.9, dim=1)
         row_indices = torch.nonzero(rows_with_values_gt_0_9).squeeze()
 
         # Step 2: Check if any row meets the condition

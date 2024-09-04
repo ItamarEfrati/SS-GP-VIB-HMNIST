@@ -1,5 +1,0 @@
-defaults:
-  - default2.yaml
-
-accelerator: gpu
-devices: [0]

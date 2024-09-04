@@ -17,7 +17,6 @@ from omegaconf import DictConfig
 # adds root dir to the PYTHONPATH (so this file can be run from any place)
 # https://github.com/ashleve/pyrootutils
 root = pyrootutils.setup_root(__file__, dotenv=True, pythonpath=True)
-print(root)
 
 DATASETS_UCR_2018 = ["AllGestureWiimoteX", "AllGestureWiimoteY", "AllGestureWiimoteZ", "ArrowHead", "BME", "Car", "CBF",
                      "Chinatown", "ChlorineConcentration", "CinCECGTorso", "Computers", "CricketX", "CricketY",

@@ -47,10 +47,10 @@ data_decoder:
   num_samples: ${model.num_samples}
 
 
-
 is_vae: false
 is_ssl: false
 data_beta: 0
 beta: 0.8
 entropy_coef: 0
 reconstruction_coef: 0
+triplet_loss_coef: 0
