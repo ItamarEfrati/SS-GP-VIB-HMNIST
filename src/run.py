@@ -9,7 +9,6 @@ d = {
                    "datamodule.dataset_name={} "
                    "size=full "
                    "num_labeled=1 "
-                   "datamodule=tsc/uea size=full "
                    "model=tsc/gpvib_e_inception_d_flatten "
                    "hparams_search=tsc/gp_vib "
                    "callbacks=default",
@@ -18,7 +17,7 @@ d = {
                        "datamodule.dataset_name={} "
                        "size=full_0.4 "
                        "num_labeled=0.4 "
-                       "datamodule=tsc/uea size=full "
+                       "datamodule=tsc/uea"
                        "model=tsc/gpvib_e_inception_d_flatten "
                        "hparams_search=tsc/gp_vib "
                        "callbacks=default",
@@ -27,7 +26,6 @@ d = {
                         "datamodule.dataset_name={} "
                         "size=full_0.25 "
                         "num_labeled=0.25 "
-                        "datamodule=tsc/uea size=full "
                         "model=tsc/gpvib_e_inception_d_flatten "
                         "hparams_search=tsc/gp_vib "
                         "callbacks=default",
@@ -36,7 +34,6 @@ d = {
                        "datamodule.dataset_name={} "
                        "size=full_0.1 "
                        "num_labeled=0.1 "
-                       "datamodule=tsc/uea size=full "
                        "model=tsc/gpvib_e_inception_d_flatten "
                        "hparams_search=tsc/gp_vib "
                        "callbacks=default",
@@ -45,7 +42,6 @@ d = {
                         "datamodule.dataset_name={} "
                         "size=full_0.07 "
                         "num_labeled=0.07 "
-                        "datamodule=tsc/uea size=full "
                         "model=tsc/gpvib_e_inception_d_flatten "
                         "hparams_search=tsc/gp_vib "
                         "callbacks=default",
@@ -54,7 +50,6 @@ d = {
                         "datamodule.dataset_name={} "
                         "size=full_0.05 "
                         "num_labeled=0.05 "
-                        "datamodule=tsc/uea size=full "
                         "model=tsc/gpvib_e_inception_d_flatten "
                         "hparams_search=tsc/gp_vib "
                         "callbacks=default",
@@ -63,7 +58,6 @@ d = {
                      "datamodule.dataset_name={} "
                      "size=ss_0.4 "
                      "num_labeled=0.4 "
-                     "datamodule=tsc/uea size=full "
                      "model=tsc/ss_gpvib_e_inception_d_flatten "
                      "hparams_search=tsc/gp_vib "
                      "callbacks=default",
@@ -72,7 +66,6 @@ d = {
                       "datamodule.dataset_name={} "
                       "size=ss_0.25 "
                       "num_labeled=0.25 "
-                      "datamodule=tsc/uea size=full "
                       "model=tsc/ss_gpvib_e_inception_d_flatten "
                       "hparams_search=tsc/ss_gp_vib "
                       "callbacks=default",
@@ -81,7 +74,6 @@ d = {
                   "datamodule.dataset_name={} "
                   "size=ss_0.1 "
                   "num_labeled=0.1 "
-                  "datamodule=tsc/uea size=full "
                   "model=tsc/ss_gpvib_e_inception_d_flatten "
                   "hparams_search=tsc/ss_gp_vib "
                   "callbacks=default",
@@ -90,7 +82,6 @@ d = {
                    "datamodule.dataset_name={} "
                    "size=ss_0.07 "
                    "num_labeled=0.07 "
-                   "datamodule=tsc/uea size=full "
                    "model=tsc/ss_gpvib_e_inception_d_flatten "
                    "hparams_search=tsc/ss_gp_vib "
                    "callbacks=default",
@@ -99,7 +90,6 @@ d = {
                       "datamodule.dataset_name={} "
                       "size=ss_0.05 "
                       "num_labeled=0.05 "
-                      "datamodule=tsc/uea size=full "
                       "model=tsc/ss_gpvib_e_inception_d_flatten "
                       "hparams_search=tsc/ss_gp_vib "
                       "callbacks=default",
@@ -126,7 +116,7 @@ def run_script(command):
 
 # Main execution
 def main():
-    max_concurrent = 1  # Limit the number of concurrent processes
+    max_concurrent = 8  # Limit the number of concurrent processes
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_concurrent) as executor:
         futures = {executor.submit(run_script, script): script for script in scripts}

@@ -114,7 +114,6 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
 
         # Step 2: Check if any row meets the condition
         if row_indices.numel() == 0:
-            print("No rows have a value greater than 0.9.")
             filtered_argmax = None  # or handle it as you need
         else:
             # Get row-wise argmax for the rows where condition is met
@@ -123,6 +122,9 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
 
         anchors = z_unlabeled[rows_with_values_gt_0_9]
 
+        if anchors.shape[0] == 0:
+            return 0
+        anchors_for_calc = []
         selected_positive_samples = []
         selected_negative_samples = []
 
@@ -132,29 +134,43 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
 
             if matching_indices.numel() > 0:
                 # Randomly select one positive sample from the matching class
-                random_pos_idx = torch.randint(0, matching_indices.numel(), (1,))
-                selected_positive_sample = z_labeled[matching_indices[random_pos_idx]]
+                if matching_indices.numel() > 1:
+                    random_pos_idx = torch.randint(0, matching_indices.numel(), (1,))
+                    selected_positive_sample = z_labeled[matching_indices[random_pos_idx]]
+                else:
+                    selected_positive_sample = z_labeled[matching_indices]
             else:
-                selected_positive_sample = None  # Handle cases where no match is found
+                continue
 
             # Filter x_labeled to get all samples with a different class (negative samples)
             non_matching_indices = torch.nonzero(y_labeled != class_idx).squeeze()
 
             if non_matching_indices.numel() > 0:
-                # Randomly select one negative sample from a different class
-                random_neg_idx = torch.randint(0, non_matching_indices.numel(), (1,))
-                selected_negative_sample = z_labeled[non_matching_indices[random_neg_idx]]
+                if non_matching_indices.numel() > 1:
+                    # Randomly select one negative sample from a different class
+                    random_neg_idx = torch.randint(0, non_matching_indices.numel(), (1,))
+                    selected_negative_sample = z_labeled[non_matching_indices[random_neg_idx]]
+                else:
+                    selected_negative_sample = z_labeled[non_matching_indices]
             else:
                 selected_negative_sample = None  # Handle cases where no match is found
 
+            if (selected_negative_sample is None) or (selected_negative_sample is None):
+                continue
+
             selected_positive_samples.append(selected_positive_sample)
             selected_negative_samples.append(selected_negative_sample)
+            anchors_for_calc.append(anchor)
+
+        if len(anchors_for_calc) == 0:
+            return 0
 
         positive = torch.stack(selected_positive_samples).squeeze()
         negative = torch.stack(selected_negative_samples).squeeze()
+        anchors_for_calc = torch.stack(anchors_for_calc).squeeze()
 
         margin = 1.0  # Define margin for the triplet loss
-        triplet_loss = F.triplet_margin_loss(anchors, positive, negative, margin=margin, p=2)
+        triplet_loss = F.triplet_margin_loss(anchors_for_calc, positive, negative, margin=margin, p=2)
         return triplet_loss
 
     def get_x_y(self, batch, is_train=True):
