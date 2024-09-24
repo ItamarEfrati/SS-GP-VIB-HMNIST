@@ -7,7 +7,7 @@ defaults:
 
 # output directory, generated dynamically on each run
 run:
-  dir: ${paths.log_dir}/${mode}/runs/${datamodule_name}/${model_name}/${now:%Y-%m-%d}_${now:%H-%M-%S}
+  dir: ${paths.log_dir}/${mode}/runs/${datamodule_name}/${model_name}/${size}/${now:%Y-%m-%d}_${now:%H-%M-%S}
 sweep:
-  dir: ${paths.log_dir}/${mode}/multiruns/${datamodule_name}/${model_name}/${now:%Y-%m-%d}_${now:%H-%M-%S}
+  dir: ${paths.log_dir}/${mode}/multiruns/${datamodule_name}/${model_name}/${size}/${now:%Y-%m-%d}_${now:%H-%M-%S}
   subdir: ${hydra.job.num}

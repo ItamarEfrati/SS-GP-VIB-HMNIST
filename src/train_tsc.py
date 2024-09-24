@@ -62,7 +62,6 @@ def main(cfg: DictConfig) -> float:
 
     if cfg.datamodule.dataset_name:
         datasets = [cfg.datamodule.dataset_name]
-
     for dataset_name in datasets:
         dataset_metric_dict = defaultdict(list)
         for i, seed in enumerate(seeds):

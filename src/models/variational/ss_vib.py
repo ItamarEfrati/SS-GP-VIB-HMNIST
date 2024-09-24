@@ -90,12 +90,13 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
             kl = kl * self.beta
 
         log_values = {'mean_label_negative_log_likelihood': (-label_log_likelihood).mean(),
-                      'mean_data_negative_log_likelihood': -data_log_likelihood.mean()}
+                      'mean_data_negative_log_likelihood': -data_log_likelihood.mean(),
+                      'triplet_loss': triplet_loss}
 
         entropy = qy_z_full.entropy().mean()
         log_values['qy_z_entropy'] = entropy
         elbo = reconstruction_error - kl
-        elbo = elbo.mean() - self.hparams.entropy_coef * entropy + self.hparams.triplet_loss_coef * triplet_loss
+        elbo = elbo.mean() - self.hparams.entropy_coef * entropy + triplet_loss
         loss = -elbo
         probabilities, y_pred = self.get_y_pred(qy_z)
         log_values['loss'] = loss
@@ -109,69 +110,77 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
                 'latent': pz_x.mean}
 
     def get_triplet_loss(self, batch_size, qy_z_full, z_labeled, z_unlabeled, y_labeled):
-        rows_with_values_gt_0_9 = torch.any(qy_z_full.mean[batch_size:] > 0.9, dim=1)
-        row_indices = torch.nonzero(rows_with_values_gt_0_9).squeeze()
+        mean = [qy_z_full.mean[:batch_size], qy_z_full.mean[batch_size:]]
+        z = [z_labeled, z_unlabeled]
+        triplet_loss = []
+        for i in range(2):
+            rows_with_values_gt_0_9 = torch.any(mean[i] > 0.9, dim=1)
+            row_indices = torch.nonzero(rows_with_values_gt_0_9).squeeze(-1)
 
-        # Step 2: Check if any row meets the condition
-        if row_indices.numel() == 0:
-            filtered_argmax = None  # or handle it as you need
-        else:
-            # Get row-wise argmax for the rows where condition is met
-            row_argmax = torch.argmax(qy_z_full.mean[batch_size:], dim=1)
-            filtered_argmax = row_argmax[rows_with_values_gt_0_9]
-
-        anchors = z_unlabeled[rows_with_values_gt_0_9]
-
-        if anchors.shape[0] == 0:
-            return 0
-        anchors_for_calc = []
-        selected_positive_samples = []
-        selected_negative_samples = []
-
-        for class_idx, anchor in zip(filtered_argmax, anchors):
-            # Filter x_labeled to get all samples with the matching class (positive samples)
-            matching_indices = torch.nonzero(y_labeled == class_idx).squeeze()
-
-            if matching_indices.numel() > 0:
-                # Randomly select one positive sample from the matching class
-                if matching_indices.numel() > 1:
-                    random_pos_idx = torch.randint(0, matching_indices.numel(), (1,))
-                    selected_positive_sample = z_labeled[matching_indices[random_pos_idx]]
-                else:
-                    selected_positive_sample = z_labeled[matching_indices]
+            # Step 2: Check if any row meets the condition
+            if row_indices.numel() == 0:
+                triplet_loss.append(0)
+                continue  # or handle it as you need
             else:
-                continue
+                # Get row-wise argmax for the rows where condition is met
+                row_argmax = torch.argmax(mean[i], dim=1)
+                filtered_argmax = row_argmax[rows_with_values_gt_0_9]
 
-            # Filter x_labeled to get all samples with a different class (negative samples)
-            non_matching_indices = torch.nonzero(y_labeled != class_idx).squeeze()
+            anchors = z[i][rows_with_values_gt_0_9]
 
-            if non_matching_indices.numel() > 0:
-                if non_matching_indices.numel() > 1:
-                    # Randomly select one negative sample from a different class
-                    random_neg_idx = torch.randint(0, non_matching_indices.numel(), (1,))
-                    selected_negative_sample = z_labeled[non_matching_indices[random_neg_idx]]
+            anchors_for_calc = []
+            selected_positive_samples = []
+            selected_negative_samples = []
+
+            for class_idx, anchor, idx in zip(filtered_argmax, anchors, row_indices):
+                # Filter x_labeled to get all samples with the matching class (positive samples)
+                matching_indices = torch.nonzero(y_labeled == class_idx).squeeze()
+                if i == 0:
+                    matching_indices = matching_indices[matching_indices != idx]
+
+                if matching_indices.numel() > 0:
+                    # Randomly select one positive sample from the matching class
+                    if matching_indices.numel() > 1:
+                        random_pos_idx = torch.randint(0, matching_indices.numel(), (1,))
+                        selected_positive_sample = z_labeled[matching_indices[random_pos_idx]]
+                    else:
+                        selected_positive_sample = z_labeled[matching_indices]
                 else:
-                    selected_negative_sample = z_labeled[non_matching_indices]
-            else:
-                selected_negative_sample = None  # Handle cases where no match is found
+                    continue
 
-            if (selected_negative_sample is None) or (selected_negative_sample is None):
-                continue
+                # Filter x_labeled to get all samples with a different class (negative samples)
+                non_matching_indices = torch.nonzero(y_labeled != class_idx).squeeze()
+                if i == 0:
+                    non_matching_indices = non_matching_indices[non_matching_indices != idx]
 
-            selected_positive_samples.append(selected_positive_sample)
-            selected_negative_samples.append(selected_negative_sample)
-            anchors_for_calc.append(anchor)
+                if non_matching_indices.numel() > 0:
+                    if non_matching_indices.numel() > 1:
+                        # Randomly select one negative sample from a different class
+                        random_neg_idx = torch.randint(0, non_matching_indices.numel(), (1,))
+                        selected_negative_sample = z_labeled[non_matching_indices[random_neg_idx]]
+                    else:
+                        selected_negative_sample = z_labeled[non_matching_indices]
+                else:
+                    selected_negative_sample = None  # Handle cases where no match is found
 
-        if len(anchors_for_calc) == 0:
-            return 0
+                if (selected_negative_sample is None) or (selected_negative_sample is None):
+                    continue
 
-        positive = torch.stack(selected_positive_samples).squeeze()
-        negative = torch.stack(selected_negative_samples).squeeze()
-        anchors_for_calc = torch.stack(anchors_for_calc).squeeze()
+                selected_positive_samples.append(selected_positive_sample)
+                selected_negative_samples.append(selected_negative_sample)
+                anchors_for_calc.append(anchor)
 
-        margin = 1.0  # Define margin for the triplet loss
-        triplet_loss = F.triplet_margin_loss(anchors_for_calc, positive, negative, margin=margin, p=2)
-        return triplet_loss
+            if len(anchors_for_calc) == 0:
+                return 0
+
+            positive = torch.stack(selected_positive_samples).squeeze()
+            negative = torch.stack(selected_negative_samples).squeeze()
+            anchors_for_calc = torch.stack(anchors_for_calc).squeeze()
+
+            margin = 1.0  # Define margin for the triplet loss
+            triplet_loss.append(
+                F.triplet_margin_loss(anchors_for_calc, positive, negative, margin=margin, p=2, reduction='sum'))
+        return triplet_loss[0] + self.hparams.triplet_loss_coef * triplet_loss[1]
 
     def get_x_y(self, batch, is_train=True):
         if is_train and self.hparams.is_ssl:

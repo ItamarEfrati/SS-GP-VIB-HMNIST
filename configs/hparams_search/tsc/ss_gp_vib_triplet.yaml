@@ -48,5 +48,4 @@ hydra:
       model.beta: range(0.01, 1, step=0.01)
       model.data_beta: range(0.01, 10, step=0.01)
       model.entropy_coef: range(0.01, 10, step=0.01)
-      model.reconstruction_coef: range(0.01, 10, step=0.01)
       model.triplet_loss_coef: range(0.01, 10, step=0.01)
