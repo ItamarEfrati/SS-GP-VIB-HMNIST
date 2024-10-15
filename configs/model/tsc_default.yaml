@@ -8,7 +8,7 @@ scheduler:
   _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
   _partial_: true
   factor: 0.5
-  patience: 50
+  patience: 10
   mode: ${callbacks.early_stopping.mode}
   threshold: 0.00001
   cooldown: 0
@@ -17,7 +17,7 @@ scheduler:
 # vib
 num_classes: -1
 alpha: -1
-num_samples: 2
+num_samples: 1
 class_weight_file:
 monitor_metric: ${callbacks.early_stopping.monitor} # for the scheduler
 use_class_weight: false

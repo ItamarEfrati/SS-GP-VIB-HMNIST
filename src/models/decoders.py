@@ -118,7 +118,8 @@ class GaussianDataDecoder(DataDecoder):
                  ):
         super().__init__(num_samples, output_length, output_n_channels)
         self.net = nn.Sequential(Reshape((-1, latent_length, latent_n_channels)),
-                                 nn.AdaptiveAvgPool1d(output_n_channels),
+                                 nn.Linear(latent_n_channels, 32),
+                                 nn.Linear(32, output_n_channels),
                                  Permute((0, 2, 1)),
                                  nn.Linear(latent_length, 128),
                                  nn.Linear(128, 128),
@@ -145,7 +146,7 @@ class InceptionDecoder(nn.Module):
                  bottleneck_size,
                  use_bottleneck,
                  num_samples,
-                 kernel_size=40,
+                 kernel_size,
 
                  depth=1
                  ):

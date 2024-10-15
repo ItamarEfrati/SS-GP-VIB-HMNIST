@@ -50,12 +50,14 @@ def get_encoding_dimension(n_filters):
 def _get_model(config, datamodule):
     model: pl.LightningModule = hydra.utils.instantiate(config.model)
     model.keywords['timeseries_encoder'].keywords['input_n_channels'] = datamodule.channels
-    n_filters = model.keywords['timeseries_encoder'].keywords['number_of_filters']
-    encoding_size = get_encoding_dimension(n_filters)
-    time_series_encoding_size = get_encoding_series_size(datamodule.train_size)
-    # time_series_encoding_size = model.keywords['timeseries_encoder'].keywords['encoding_series_size']
-    model.keywords['timeseries_encoder'].keywords['encoding_size'] = encoding_size
+    time_series_encoding_size = model.keywords['timeseries_encoder'].keywords['encoding_series_size']
+    if time_series_encoding_size == -1:
+        time_series_encoding_size = get_encoding_series_size(datamodule.train_size)
+    encoding_size = model.keywords['timeseries_encoder'].keywords['encoding_size']
     model.keywords['timeseries_encoder'].keywords['encoding_series_size'] = time_series_encoding_size
+    # model.keywords['timeseries_encoder'].keywords['number_of_filters'] = encoding_size // 4
+    # model.keywords['timeseries_encoder'].keywords['bottleneck_size'] = encoding_size // 4
+
     model.keywords['timeseries_encoder'] = model.keywords['timeseries_encoder']()
     model.keywords['encoder'].keywords['encoding_size'] = encoding_size
     model.keywords['decoder'].keywords['z_dim'] = encoding_size

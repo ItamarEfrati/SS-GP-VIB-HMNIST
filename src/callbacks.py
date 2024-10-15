@@ -1,5 +1,6 @@
 import io
 
+import numpy as np
 import pytorch_lightning as pl
 import torch
 import torchmetrics
@@ -32,7 +33,8 @@ class ImagePlot(Callback):
         buf.seek(0)
         image = Image.open(buf)
 
-        pl_module.logger.experiment.log({f'{split} reconstruction images': wandb.Image(image), "epoch": pl_module.current_epoch})
+        pl_module.logger.experiment.log(
+            {f'{split} reconstruction images': wandb.Image(image), "epoch": pl_module.current_epoch})
 
     def on_train_batch_end(
             self,
@@ -267,52 +269,76 @@ class LatentSpaceSaver(Callback):
 
 class PlotLatentSpace(Callback):
     def __init__(self):
+        self.test_target = []
+        self.test_predictions = []
+        self.test_outputs = []
+        self.train_target = []
+        self.train_predictions = []
+        self.train_outputs = []
         self.val_outputs = []
         self.val_predictions = []
         self.val_target = []
 
-    def on_validation_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
-        if pl_module.current_epoch % 5 == 0:
-            # Concatenate validation outputs, predictions, and targets
-            val_outputs = torch.cat(self.val_outputs).cpu().numpy()
-            val_predictions = torch.cat(self.val_predictions).cpu().numpy()
-            val_target = torch.cat(self.val_target).cpu().numpy()
+    def on_fit_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        # train_outputs = torch.cat(self.train_outputs).cpu().detach().numpy()
+        # train_predictions = torch.cat(self.train_predictions).cpu().detach().numpy()
+        # train_target = torch.cat(self.train_target).cpu().detach().numpy()
+        #
+        # self.plot_2d(pl_module, train_outputs, train_predictions, train_target, 'Training')
+        #
+        # # Reset the stored outputs
+        # self.train_outputs = []
+        # self.train_predictions = []
+        # self.train_target = []
 
-            d = DtwDist(weighted=True, derivative=True)
-            distmat = d.transform(val_outputs)
+        val_outputs = torch.cat(self.val_outputs).cpu().numpy()
+        val_predictions = torch.cat(self.val_predictions).cpu().numpy()
+        val_target = torch.cat(self.val_target).cpu().numpy()
 
-            # Apply t-SNE to the latent space
-            tsne = TSNE(n_components=2, metric='precomputed', init='random')
-            val_outputs_2d = tsne.fit_transform(distmat)
-
-            # Create subplots
-            fig, axes = plt.subplots(1, 2, figsize=(20, 8))
-
-            # Plot the 2D latent space with true labels
-            scatter_true = axes[0].scatter(val_outputs_2d[:, 0], val_outputs_2d[:, 1], c=val_target, cmap='viridis',
-                                           alpha=0.5)
-            axes[0].set_title("Validation Latent Space with True Labels")
-            fig.colorbar(scatter_true, ax=axes[0])
-
-            # Plot the 2D latent space with validation predictions
-            scatter_pred = axes[1].scatter(val_outputs_2d[:, 0], val_outputs_2d[:, 1], c=val_predictions,
-                                           cmap='viridis', alpha=0.5)
-            axes[1].set_title("Validation Latent Space with Predictions")
-            fig.colorbar(scatter_pred, ax=axes[1])
-
-            # Convert the plot to a numpy array
-            buf = io.BytesIO()
-            plt.savefig(buf, format='png')
-            buf.seek(0)
-            image = Image.open(buf)
-
-            pl_module.logger.experiment.log(
-                {"Validation Latent Space": wandb.Image(image), "epoch": pl_module.current_epoch})
+        self.plot_2d(pl_module, val_outputs, val_predictions, val_target, 'Validation')
 
         # Reset the stored outputs
         self.val_outputs = []
         self.val_predictions = []
         self.val_target = []
+
+    def on_test_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        test_outputs = torch.cat(self.test_outputs).cpu().numpy()
+        test_predictions = torch.cat(self.test_predictions).cpu().numpy()
+        test_target = torch.cat(self.test_target).cpu().numpy()
+
+        self.plot_2d(pl_module, test_outputs, test_predictions, test_target, 'Test')
+
+        # Reset the stored outputs
+        self.test_outputs = []
+        self.test_predictions = []
+        self.test_target = []
+
+    def plot_2d(self, pl_module, outputs, predictions, target, split):
+        d = DtwDist(weighted=True, derivative=True)
+        distmat = d.transform(outputs)
+        # Apply t-SNE to the latent space
+        tsne = TSNE(n_components=2, metric='precomputed', init='random')
+        val_outputs_2d = tsne.fit_transform(distmat)
+        # Create subplots
+        fig, axes = plt.subplots(1, 2, figsize=(20, 8))
+        # Plot the 2D latent space with true labels
+        scatter_true = axes[0].scatter(val_outputs_2d[:, 0], val_outputs_2d[:, 1], c=target, cmap='viridis',
+                                       alpha=0.5)
+        axes[0].set_title(f"{split} Latent Space with True Labels")
+        fig.colorbar(scatter_true, ax=axes[0])
+        # Plot the 2D latent space with validation predictions
+        scatter_pred = axes[1].scatter(val_outputs_2d[:, 0], val_outputs_2d[:, 1], c=predictions,
+                                       cmap='viridis', alpha=0.5)
+        axes[1].set_title(f"{split} Latent Space with Predictions")
+        fig.colorbar(scatter_pred, ax=axes[1])
+        # Convert the plot to a numpy array
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+        image = Image.open(buf)
+        pl_module.logger.experiment.log(
+            {f"{split} Latent Space": wandb.Image(image), "epoch": pl_module.current_epoch})
 
     def on_validation_batch_end(
             self,
@@ -326,3 +352,171 @@ class PlotLatentSpace(Callback):
         self.val_outputs.append(outputs['latent'])
         self.val_predictions.append(outputs['preds'])
         self.val_target.append(outputs['target'])
+
+    # def on_train_batch_end(
+    #         self,
+    #         trainer: "pl.Trainer",
+    #         pl_module: "pl.LightningModule",
+    #         outputs,
+    #         batch,
+    #         batch_idx: int,
+    #         unused: int = 0,
+    # ) -> None:
+    #     self.train_outputs.append(outputs['latent'])
+    #     self.train_predictions.append(outputs['preds'])
+    #     self.train_target.append(outputs['target'])
+
+    def on_test_batch_end(
+            self,
+            trainer: "pl.Trainer",
+            pl_module: "pl.LightningModule",
+            outputs,
+            batch,
+            batch_idx: int,
+            unused: int = 0,
+    ) -> None:
+        self.test_outputs.append(outputs['latent'])
+        self.test_predictions.append(outputs['preds'])
+        self.test_target.append(outputs['target'])
+
+class PlotReconstruct(Callback):
+    def __init__(self):
+        self.val_targets = []
+        self.val_reconstruct = []
+        self.val_original = []
+
+
+    def on_validation_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        val_reconstruct = torch.cat(self.val_reconstruct).cpu().numpy()
+        val_original = torch.cat(self.val_original).cpu().numpy()
+        y_targets = torch.cat(self.val_targets).cpu().numpy()
+
+        # Get unique classes and sample 2 instances for each class
+        unique_classes = np.unique(y_targets)
+        num_samples_per_class = 1
+        selected_indices = []
+
+        for cls in unique_classes:
+            # Get the indices of samples belonging to this class
+            class_indices = np.where(y_targets == cls)[0]
+            # Randomly select 2 samples (or fewer if not enough samples in class)
+            selected_indices.extend(class_indices[:num_samples_per_class])
+
+        # Plot the selected samples
+        num_samples = len(selected_indices)
+        fig, axs = plt.subplots(num_samples, 1, figsize=(10, num_samples * 2))
+
+        for i, idx in enumerate(selected_indices):
+            axs[i].plot(val_original[idx], label='Original', color='blue')
+            axs[i].plot(val_reconstruct[idx], label='Reconstructed', color='red', linestyle='--')
+            axs[i].set_title(f'Sample {i + 1} | Target: {y_targets[idx]}')  # Adding target value to the title
+            axs[i].legend()
+            axs[i].grid(True)
+
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+        image = Image.open(buf)
+        pl_module.logger.experiment.log({f"Val Reconstruct": wandb.Image(image), "epoch": pl_module.current_epoch})
+
+        # Reset the stored outputs
+        self.val_reconstruct = []
+        self.val_original = []
+
+
+    def on_validation_batch_end(
+            self,
+            trainer: "pl.Trainer",
+            pl_module: "pl.LightningModule",
+            outputs,
+            batch,
+            batch_idx: int,
+            unused: int = 0,
+    ) -> None:
+        self.val_reconstruct.append(outputs['reconstruction'])
+        self.val_original.append(outputs['original'])
+        self.val_targets.append(outputs['target'])
+
+
+
+class ClassificationHistogramCallback(pl.Callback):
+    def __init__(self):
+        super().__init__()
+        self.num_classes = 7
+
+        self.train_preds = []
+        self.train_targets = []
+
+        self.val_preds = []
+        self.val_targets = []
+
+    def on_train_epoch_end(self, trainer, pl_module):
+        # Plot histogram
+        self.plot_histogram(self.train_targets, self.train_preds, trainer.current_epoch, pl_module, 'Train')
+
+        self.train_targets = []
+        self.train_preds = []
+
+    def on_validation_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        self.plot_histogram(self.val_targets, self.val_preds, trainer.current_epoch, pl_module, 'Val')
+        self.val_targets = []
+        self.val_preds = []
+
+    def plot_histogram(self, true_labels, predicted_labels, epoch, pl_module, step):
+        # Plot histograms of true and predicted labels
+
+        true_labels = torch.cat(true_labels).cpu().numpy()
+        predicted_labels = torch.cat(predicted_labels).cpu().numpy()
+
+        fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+
+        # Plot true labels on the first subplot (left)
+        axs[0].hist(true_labels, bins=self.num_classes, alpha=0.7, color='g')
+        axs[0].set_title('True Labels Distribution')
+        axs[0].set_xlabel('Class Labels')
+        axs[0].set_ylabel('Frequency')
+
+        # Plot predicted labels on the second subplot (right)
+        axs[1].hist(predicted_labels, bins=self.num_classes, alpha=0.7, color='r')
+        axs[1].set_title(f'Predicted Labels Distribution')
+        axs[1].set_xlabel('Class Labels')
+        axs[1].set_ylabel('Frequency')
+
+        # Set overall title for the plot
+        fig.suptitle(f'Class Distribution at Epoch {epoch}', fontsize=16)
+
+        # Save the plot to a file
+        plt.savefig(f"classification_histogram.png")
+
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+        image = Image.open(buf)
+        pl_module.logger.experiment.log({f"{step} classification_histogram": wandb.Image(image), "epoch": pl_module.current_epoch})
+
+    def on_validation_batch_end(
+            self,
+            trainer: "pl.Trainer",
+            pl_module: "pl.LightningModule",
+            outputs,
+            batch,
+            batch_idx: int,
+            unused: int = 0,
+    ) -> None:
+        self.val_preds.append(outputs['preds'])
+        self.val_targets.append(outputs['target'])
+
+
+    def on_train_batch_end(
+            self,
+            trainer: "pl.Trainer",
+            pl_module: "pl.LightningModule",
+            outputs,
+            batch,
+            batch_idx: int,
+            unused: int = 0,
+    ) -> None:
+        self.train_preds.append(outputs['preds'])
+        self.train_targets.append(outputs['target'])
+
+

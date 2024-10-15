@@ -24,6 +24,12 @@ early_stopping:
 #log_latent_embeddings:
 #  _target_: src.callbacks.PlotLatentSpace
 
+#log_reconstruct:
+#  _target_: src.callbacks.PlotReconstruct
+
+log_preds:
+  _target_: src.callbacks.ClassificationHistogramCallback
+
 #
 #init_parameters:
 #  _target_: src.callbacks.ParameterInitialization

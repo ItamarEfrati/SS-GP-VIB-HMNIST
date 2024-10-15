@@ -1,5 +1,4 @@
-name: ss_gp-vib
-
+name: ss_gp-vib_inception
 _target_: src.models.variational.ss_gp_vib.SemiSupervisedGPVIB
 _partial_: True
 
@@ -12,10 +11,9 @@ timeseries_encoder:
   input_n_channels: -1
   encoding_size: 128 # how many series in the latent space
   encoding_series_size: 10 # the length of each series in the latent space
-  number_of_filters: 32 # there are 4 kernels so final channel size is 128
+  number_of_filters:  32 # there are 4 kernels
   bottleneck_size: 32
   use_bottleneck: true
-  kernel_size: 20
   depth: 1
 
 
@@ -35,26 +33,28 @@ decoder:
   hidden_size_2: -1
   hidden_size_3: -1
   num_samples: ${model.num_samples}
-  output_size: ${model.num_classes}
+  output_size:
 
 
 data_decoder:
-  _target_: src.models.decoders.GaussianDataDecoder
+  _target_: src.models.decoders.InceptionDecoder
   _partial_: True
   output_n_channels:
-  output_length:
-  latent_n_channels:
-  latent_length:
+  number_of_filters: ${model.timeseries_encoder.number_of_filters}
+  bottleneck_size: ${model.timeseries_encoder.bottleneck_size}
+  use_bottleneck: ${model.timeseries_encoder.use_bottleneck}
+  encoded_n_channels: ${model.timeseries_encoder.encoding_size}
+  encoded_series_size: ${model.timeseries_encoder.encoding_series_size}
   num_samples: ${model.num_samples}
 
 
 is_vae: false
-is_ssl: true
+is_ssl: false
 data_beta: 0
-beta: 0.001
+beta: 0.0001
 entropy_coef: 0
 reconstruction_coef: 0
 triplet_loss_coef: 1
-classification_coef: 1
+classification_coef: 10
 triplet_threshold: 0.9
-triplet_dist:  jsd # euclidean
+triplet_dist: jsd # euclidean

@@ -28,5 +28,5 @@ model_name: ${model.name}
 num_runs: 1
 size:
 num_labeled:
-suffix:
+suffix: _debug2
 

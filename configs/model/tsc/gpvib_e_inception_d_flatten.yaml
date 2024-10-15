@@ -54,3 +54,5 @@ beta: 0.8
 entropy_coef: 0
 reconstruction_coef: 0
 triplet_loss_coef: 0
+triplet_threshold: 1
+triplet_dist:
