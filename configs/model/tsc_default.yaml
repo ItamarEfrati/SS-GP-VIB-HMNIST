@@ -25,6 +25,6 @@ sample_during_evaluation: false
 
 # gp_vib
 kernel: cauchy
-sigma: 0.7
+sigma: 1
 length_scale: 1
 kernel_scales: 1

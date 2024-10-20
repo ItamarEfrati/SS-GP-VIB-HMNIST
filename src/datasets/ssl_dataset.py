@@ -267,17 +267,20 @@ class SemiDataModule(DataModuleBase):
                 self.train_set is not None
         ), "Should create self.train_set in self.setup()"
 
+        assert (
+            any([not self.is_ssl,
+                 self.is_ssl and self.num_labeled < 1])), \
+            f'SSL should have unlabeled data used ratio less than 1 for num_labeled'
+
         indices = np.arange(len(self.train_set))
         y_train = np.array([self.train_set[i][-1] for i in indices], dtype=np.int64)
-
         self.labeled_indices, self.unlabeled_indices = split_train(y_train,
                                                                    self.num_labeled,
                                                                    self.n_classes)
-
         if self.is_ssl:
             train_list = [Subset(self.train_set, self.labeled_indices), Subset(self.train_set, self.unlabeled_indices)]
         else:
-            train_list = [Subset(self.train_set, self.labeled_indices)]
+            train_list = [Subset(self.train_set, indices)]
         self.train_set = CustomSemiDataset(train_list, self.is_ssl)
 
     def train_dataloader(self):

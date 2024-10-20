@@ -57,7 +57,7 @@ class SemiSupervisedGPVIB(SemiSupervisedVIB, pl.LightningModule):
     def compute_kl_divergence(self, pz_x):
         kl = torch.distributions.kl.kl_divergence(pz_x, self.r_z())
         kl = torch.where(torch.torch.isfinite(kl), kl, torch.zeros_like(kl))
-        return kl.sum(-1)
+        return kl.mean(-1)
 
     def get_x_y(self, batch, is_train=True):
         if is_train and self.hparams.is_ssl:

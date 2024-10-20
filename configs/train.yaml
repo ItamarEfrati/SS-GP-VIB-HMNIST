@@ -1,10 +1,10 @@
 defaults:
   - _self_
-  - datamodule:
-  - model: hmnist/ss_gpvib_e_cnn1d_dl_flatten
-  - trainer: gpu2
+  - datamodule: har/ssl_har
+  - model: har/ss_gpvib_e_inception_d_flatten
+  - trainer: gpu
   - logger: wandb
-  - callbacks: hmnist
+  - callbacks: default
   - hydra: default
   - debug:
   - paths: default
@@ -13,7 +13,7 @@ defaults:
   - extras: default
 
 seed: 42
-mode: experiment
+mode: debug
 run_test: True
 optimized_metric: ${metrics.optimize}
 
@@ -22,9 +22,9 @@ optimized_metric: ${metrics.optimize}
 ckpt_path: null # path to checkpoint model
 
 # name of the run, should be used along with experiment mode
-datamodule_name: hmnist
+datamodule_name: har
 model_name: ${model.name}
-size:
-num_labeled:
-
+size: ssl_0.5
+num_labeled: 0.5
+suffix: _debug
 

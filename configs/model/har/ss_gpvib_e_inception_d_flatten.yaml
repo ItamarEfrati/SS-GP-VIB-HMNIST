@@ -1,0 +1,58 @@
+name: ss_gp-vib
+
+_target_: src.models.variational.ss_gp_vib.SemiSupervisedGPVIB
+
+defaults:
+  - tsc_default.yaml
+
+timeseries_encoder:
+  _target_: src.models.encoders.InceptionEncoder
+  input_n_channels: 3
+  encoding_size: 10 # how many series in the latent space
+  encoding_series_size: 10 # the length of each series in the latent space
+  number_of_filters: 32 # there are 4 kernels so final channel size is 128
+  bottleneck_size: 32
+  use_bottleneck: true
+  kernel_size: 20
+  depth: 1
+
+
+encoder:
+  _target_: src.models.encoders.BandedJointEncoder
+  _partial_: true
+  precision_activation:
+    _target_: torch.nn.Softmax
+  encoding_size: ${model.timeseries_encoder.encoding_size}
+
+
+decoder:
+  _target_: src.models.decoders.FlattenMultinomialDecoder
+  _partial_: true
+  z_dim: ${model.timeseries_encoder.encoding_size}
+  hidden_size_1: 128
+  hidden_size_2: -1
+  hidden_size_3: -1
+  num_samples: ${model.num_samples}
+  output_size: ${model.num_classes}
+
+
+data_decoder:
+  _target_: src.models.decoders.GaussianDataDecoder
+  output_n_channels: 3
+  output_length: 200
+  latent_n_channels: ${model.timeseries_encoder.encoding_size}
+  latent_length: ${model.timeseries_encoder.encoding_series_size}
+  num_samples: ${model.num_samples}
+
+
+is_vae: false
+is_ssl: false
+num_classes: 6
+data_beta: 0
+beta: 0
+entropy_coef: 0
+reconstruction_coef: 0
+triplet_loss_coef: 0
+classification_coef: 1
+triplet_threshold: 0.9
+triplet_dist:  jsd # euclidean

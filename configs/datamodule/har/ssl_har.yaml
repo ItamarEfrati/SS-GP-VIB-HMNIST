@@ -1,0 +1,11 @@
+_target_: src.datasets.har.har.HARDataModule
+
+dataset_name: HAR
+download_dir: ${paths.data_dir}/har
+batch_size: 64
+num_workers: 1
+num_labeled: ${num_labeled}
+n_classes: 6
+num_val: 0 # ignore
+validation_split_seed: 42 # ignore
+is_ssl: ${model.is_ssl}
