@@ -31,7 +31,7 @@ class SemiSupervisedGPVIB(SemiSupervisedVIB, pl.LightningModule):
         if self.prior is None:
             self.prior = get_gp_prior(kernel=self.hparams.kernel, kernel_scales=self.hparams.kernel_scales,
                                       time_length=self.z_dim_time_length, sigma=self.hparams.sigma,
-                                      length_scale=self.hparams.length_scale, z_dim=self.encoder.encoding_size,
+                                      length_scale=self.hparams.length_scale, z_dim=self.encoder.z_dim,
                                       device=self.device)
         return self.prior
 

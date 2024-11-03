@@ -1,6 +1,6 @@
 _target_: src.datasets.har.har.HARDataModule
-
-dataset_name: HAR
+_partial_: true
+dataset_name:
 download_dir: ${paths.data_dir}/har
 batch_size: 64
 num_workers: 1

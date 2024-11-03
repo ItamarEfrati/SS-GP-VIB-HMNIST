@@ -49,8 +49,8 @@ class VIB(AbstractVIB, pl.LightningModule):
 
     def r_z(self):
         if self.prior is None:
-            self.prior = MultivariateNormal(loc=torch.zeros(self.encoder.encoding_size, device=self.device),
-                                            covariance_matrix=torch.eye(self.encoder.encoding_size, device=self.device))
+            self.prior = MultivariateNormal(loc=torch.zeros(self.encoder.z_dim, device=self.device),
+                                            covariance_matrix=torch.eye(self.encoder.z_dim, device=self.device))
         return self.prior
 
     def forward(self, x, is_sample):

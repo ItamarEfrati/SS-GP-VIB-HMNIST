@@ -46,6 +46,8 @@ hydra:
     # define hyperparameter search space
     params:
       model.beta: range(0.01, 1, step=0.01)
-      model.data_beta: range(0.01, 10, step=0.01)
-      model.entropy_coef: range(0.01, 10, step=0.01)
-      model.reconstruction_coef: range(0.001, 10, step=0.001)
+      model.data_beta: range(0, 10, step=0.01)
+      model.entropy_coef: range(0, 10, step=0.01)
+      model.reconstruction_coef: range(0, 1, step=0.001)
+      model.timeseries_encoder.encoding_size:  choice(8, 32, 64, 128)
+      model.timeseries_encoder.encoding_series_size:  choice(2, 4, 6, 8, 10)

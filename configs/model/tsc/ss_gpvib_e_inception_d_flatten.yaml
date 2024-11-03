@@ -10,10 +10,10 @@ timeseries_encoder:
   _target_: src.models.encoders.InceptionEncoder
   _partial_: True
   input_n_channels: -1
-  encoding_size: 128 # how many series in the latent space
-  encoding_series_size: 10 # the length of each series in the latent space
-  number_of_filters: 32 # there are 4 kernels so final channel size is 128
-  bottleneck_size: 32
+  encoding_size: -1 # how many series in the latent space
+  encoding_series_size: -1 # the length of each series in the latent space
+  number_of_filters: -1 # there are 4 kernels so final channel size is 128
+  bottleneck_size: -1
   use_bottleneck: true
   kernel_size: 20
   depth: 1
@@ -43,18 +43,18 @@ data_decoder:
   _partial_: True
   output_n_channels:
   output_length:
-  latent_n_channels:
-  latent_length:
+  latent_n_channels: ${model.timeseries_encoder.encoding_size}
+  latent_length: ${model.timeseries_encoder.encoding_series_size}
   num_samples: ${model.num_samples}
 
 
 is_vae: false
 is_ssl: true
 data_beta: 0
-beta: 0.001
+beta: 0.01
 entropy_coef: 0
-reconstruction_coef: 0
-triplet_loss_coef: 1
+reconstruction_coef: -1
+triplet_loss_coef: 0
 classification_coef: 1
-triplet_threshold: 0.9
-triplet_dist:  jsd # euclidean
+triplet_threshold: 1
+triplet_dist:  euclidean # jsd

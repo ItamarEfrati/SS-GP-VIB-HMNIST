@@ -94,7 +94,7 @@ class SemiSupervisedTSC(SemiDataModule):
         return x_train, x_test, y_train, y_test
 
     def _build_splits(self, X, y):
-        np.random.seed(self.validation_split_seed)
+        # np.random.seed(self.validation_split_seed)
         skf = StratifiedKFold(5, shuffle=True)
         split_indices = list(skf.split(X, y))
 

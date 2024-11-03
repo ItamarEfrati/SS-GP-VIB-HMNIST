@@ -1,6 +1,9 @@
+from typing import Any
+
 import torch
 import pytorch_lightning as pl
 import wandb
+from pytorch_lightning.utilities.types import STEP_OUTPUT
 
 from models.variational.vib import VIB
 from models.decoders import Decoder
@@ -33,17 +36,26 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
         self.data_beta = data_beta if data_beta != -1 else self.beta
         self.data_decoder = data_decoder
         self.current_acc = 0
-        self.triplet_loss = NT_Xent(batch_size=128, temperature=0.5)
+        self.triplet_loss = NT_Xent(temperature=0.5)
+        self.split_latent = False
 
     def decode(self, z, is_train=True):
         if is_train and self.hparams.is_ssl:
             z_labeled, z_unlabeled = z[:z.shape[0] // 2], z[z.shape[0] // 2:]
-            px_z = self.data_decoder(z_unlabeled)
-            qy_z = self.label_decoder(z_labeled)
-            qy_z_full = self.label_decoder(z)
+            if self.split_latent:
+                px_z = self.data_decoder(z[:, :z.shape[-2] // 2])
+                qy_z = self.label_decoder(z_labeled[z.shape[-2] // 2:])
+            else:
+                px_z = self.data_decoder(z_unlabeled)
+                qy_z = self.label_decoder(z_labeled)
+                qy_z_full = self.label_decoder(z)
         else:
-            qy_z = self.label_decoder(z)
-            px_z = self.data_decoder(z)
+            if self.split_latent:
+                qy_z = self.label_decoder(z[z.shape[-2] // 2:])
+                px_z = self.data_decoder(z[:, :z.shape[-2] // 2])
+            else:
+                qy_z = self.label_decoder(z)
+                px_z = self.data_decoder(z)
             qy_z_full = qy_z
 
         return qy_z, px_z, qy_z_full
@@ -64,17 +76,16 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
         x, y, x_unlabeled = self.get_x_y(batch, is_train)
         if is_train and self.hparams.is_ssl:
             x_temp = torch.concat([x, x_unlabeled])
-            x_j = x_temp + torch.normal(mean=0.0, std=0.1, size=x_temp.shape, device=x_temp.device)
-            z_j = self.encode(x_j)
+            # x_j = x_temp + torch.normal(mean=0.0, std=0.1, size=x_temp.shape, device=x_temp.device)
+            # z_j = self.encode(x_j)
             x_reconstruction_origin = x_unlabeled
         else:
             x_temp = x
             x_reconstruction_origin = x
         pz_x, qy_z, px_z, qy_z_full = self.forward(x_temp, is_sample, is_train)
 
-
         kl = self.compute_kl_divergence(pz_x)
-        label_log_likelihood = self.hparams.classification_coef * self.compute_log_likelihood(qy_z, y)
+        label_log_likelihood = self.compute_log_likelihood(qy_z, y)
 
         data_log_likelihood = self.compute_log_likelihood(px_z, x_reconstruction_origin, is_multinomial=False)
         data_log_likelihood = data_log_likelihood.mean(dim=[1, 2])
@@ -84,10 +95,10 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
             reconstruction_error = data_log_likelihood
             kl = kl * self.data_beta
         elif self.hparams.is_ssl and is_train:
-            reconstruction_error = torch.concat(
-                [label_log_likelihood, self.hparams.reconstruction_coef * data_log_likelihood])
-            kl[batch_size:] = kl[batch_size:] * self.data_beta
-            kl[:batch_size] = kl[:batch_size] * self.hparams.beta
+            # reconstruction_error = torch.concat(
+            #     [label_log_likelihood, self.hparams.reconstruction_coef * data_log_likelihood])
+            data_kl = kl[batch_size:] = kl[batch_size:] * self.data_beta
+            kl = kl[:batch_size] * self.hparams.beta
             # triplet_loss = self.triplet_loss(pz_x.mean[:64].reshape(64, -1), z_j.mean.reshape(64, -1))
             # triplet loss
             # if (self.hparams.triplet_loss_coef > 0) and (self.current_acc > 0.7):
@@ -96,21 +107,25 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
             # else:
             #     triplet_loss = 0
 
-            triplet_loss = self.triplet_loss(pz_x.mean.reshape(pz_x.batch_shape[0], -1),
-                                             z_j.mean.reshape(pz_x.batch_shape[0], -1))
+            # triplet_loss = self.triplet_loss(pz_x.mean.reshape(pz_x.batch_shape[0], -1),
+            #                                  z_j.mean.reshape(pz_x.batch_shape[0], -1))
 
         else:
-            reconstruction_error = label_log_likelihood
+            # reconstruction_error = label_log_likelihood
+            data_kl = 0
             kl = kl * self.beta
 
         log_values = {'mean_label_negative_log_likelihood_loss': (-label_log_likelihood).mean(),
                       'mean_data_negative_log_likelihood_loss': -data_log_likelihood.mean(),
                       'triplet_loss': triplet_loss}
 
-        entropy = qy_z_full.entropy()[:batch_size].mean()
-        elbo = reconstruction_error - kl
+        reconstruction_error = self.hparams.reconstruction_coef * (data_kl - data_log_likelihood).mean()
+        entropy = self.hparams.entropy_coef * qy_z.entropy().mean()
+        # elbo = reconstruction_error - kl
+        elbo = self.hparams.classification_coef * label_log_likelihood - kl
         elbo = elbo.mean()
-        loss = -elbo + self.hparams.entropy_coef * entropy + self.hparams.triplet_loss_coef * triplet_loss
+        # loss = -elbo + self.hparams.entropy_coef * entropy + self.hparams.triplet_loss_coef * triplet_loss + reconstruction_error
+        loss = -elbo + entropy + reconstruction_error
         probabilities, y_pred = self.get_y_pred(qy_z)
         log_values['loss'] = loss
         log_values['kl_loss'] = kl.mean()
@@ -167,5 +182,17 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
     def on_fit_start(self):
         # Automatically log gradients and weights
         wandb.watch(self, log="all", log_freq=100)
+
+    # def on_train_batch_end(self, outputs: STEP_OUTPUT, batch: Any, batch_idx: int) -> None:
+    #     inc = 0.001
+    # if self.hparams.reconstruction_coef > inc:
+    #     self.hparams.reconstruction_coef -= inc
+    # else:
+    #     self.hparams.reconstruction_coef = inc
+    #
+    # if self.hparams.classification_coef < (1 - inc):
+    #     self.hparams.classification_coef += inc
+    # else:
+    #     self.hparams.classification_coef = 1
 
 # endregion

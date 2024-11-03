@@ -385,6 +385,10 @@ class PlotReconstruct(Callback):
         self.val_reconstruct = []
         self.val_original = []
 
+        self.train_targets = []
+        self.train_reconstruct = []
+        self.train_original = []
+
 
     def on_validation_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
         val_reconstruct = torch.cat(self.val_reconstruct).cpu().numpy()
@@ -424,6 +428,44 @@ class PlotReconstruct(Callback):
         self.val_original = []
 
 
+    def on_train_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        train_reconstruct = torch.cat(self.train_reconstruct).detach().cpu().numpy()
+        train_original = torch.cat(self.train_original).detach().cpu().numpy()
+        y_targets = torch.cat(self.train_targets).detach().cpu().numpy()
+
+        # Get unique classes and sample 2 instances for each class
+        unique_classes = np.unique(y_targets)
+        num_samples_per_class = 1
+        selected_indices = []
+
+        for cls in unique_classes:
+            # Get the indices of samples belonging to this class
+            class_indices = np.where(y_targets == cls)[0]
+            # Randomly select 2 samples (or fewer if not enough samples in class)
+            selected_indices.extend(class_indices[:num_samples_per_class])
+
+        # Plot the selected samples
+        num_samples = len(selected_indices)
+        fig, axs = plt.subplots(num_samples, 1, figsize=(10, num_samples * 2))
+
+        for i, idx in enumerate(selected_indices):
+            axs[i].plot(train_original[idx], label='Original', color='blue')
+            axs[i].plot(train_reconstruct[idx], label='Reconstructed', color='red', linestyle='--')
+            axs[i].set_title(f'Sample {i + 1} | Target: {y_targets[idx]}')  # Adding target value to the title
+            axs[i].legend()
+            axs[i].grid(True)
+
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+        image = Image.open(buf)
+        pl_module.logger.experiment.log({f"Train Reconstruct": wandb.Image(image), "epoch": pl_module.current_epoch})
+
+        # Reset the stored outputs
+        self.train_reconstruct = []
+        self.train_original = []
+
+
     def on_validation_batch_end(
             self,
             trainer: "pl.Trainer",
@@ -436,6 +478,20 @@ class PlotReconstruct(Callback):
         self.val_reconstruct.append(outputs['reconstruction'])
         self.val_original.append(outputs['original'])
         self.val_targets.append(outputs['target'])
+
+
+    def on_train_batch_end(
+            self,
+            trainer: "pl.Trainer",
+            pl_module: "pl.LightningModule",
+            outputs,
+            batch,
+            batch_idx: int,
+            unused: int = 0,
+    ) -> None:
+        self.train_reconstruct.append(outputs['reconstruction'])
+        self.train_original.append(outputs['original'])
+        self.train_targets.append(outputs['target'])
 
 
 

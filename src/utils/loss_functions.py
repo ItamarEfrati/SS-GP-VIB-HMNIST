@@ -168,13 +168,12 @@ class GatherLayer(torch.autograd.Function):
 
 
 class NT_Xent(nn.Module):
-    def __init__(self, batch_size, temperature, world_size=1):
+    def __init__(self, temperature, world_size=1):
         super(NT_Xent, self).__init__()
-        self.batch_size = batch_size
         self.temperature = temperature
         self.world_size = world_size
 
-        self.mask = self.mask_correlated_samples(batch_size, world_size)
+        self.mask = None
         self.criterion = nn.CrossEntropyLoss(reduction="sum")
         self.similarity_f = nn.CosineSimilarity(dim=2)
 
@@ -192,7 +191,10 @@ class NT_Xent(nn.Module):
         We do not sample negative examples explicitly.
         Instead, given a positive pair, similar to (Chen et al., 2017), we treat the other 2(N − 1) augmented examples within a minibatch as negative examples.
         """
-        N = 2 * z_i.shape[0]  # * self.world_size
+        batch_size = z_i.shape[0]
+        N = 2 * batch_size  # * self.world_size
+        if (self.mask is None) or (self.mask.shape[0] != N):
+            self.mask = self.mask_correlated_samples(batch_size, self.world_size)
 
         z = torch.cat((z_i, z_j), dim=0)
         if self.world_size > 1:
@@ -200,8 +202,8 @@ class NT_Xent(nn.Module):
 
         sim = self.similarity_f(z.unsqueeze(1), z.unsqueeze(0)) / self.temperature
 
-        sim_i_j = torch.diag(sim, self.batch_size * self.world_size)
-        sim_j_i = torch.diag(sim, -self.batch_size * self.world_size)
+        sim_i_j = torch.diag(sim, batch_size * self.world_size)
+        sim_j_i = torch.diag(sim, -batch_size * self.world_size)
 
         # We have 2N samples, but with Distributed training every GPU gets N examples too, resulting in: 2xNxN
         positive_samples = torch.cat((sim_i_j, sim_j_i), dim=0).reshape(N, 1)

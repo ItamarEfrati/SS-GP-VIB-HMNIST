@@ -9,7 +9,7 @@ defaults:
   - debug:
   - paths: default
   - hparams_search:
-  - metrics: vib_val
+  - metrics: tsc
   - extras: default
 
 seed: 42

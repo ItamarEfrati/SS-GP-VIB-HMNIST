@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
+from torch.distributions import Multinomial
 from torch.distributions.multivariate_normal import MultivariateNormal
 
 from utils.model_utils import get_2d_cnn_layers, get_linear_layers, get_1d_cnn_layers, Permute, get_cnn1d_output_dim, \
@@ -17,7 +18,7 @@ class Encoder(nn.Module, ABC):
             :param encoding_size: latent space dimensionality
         """
         super(Encoder, self).__init__()
-        self.encoding_size = encoding_size
+        self.z_dim = encoding_size
 
     @abstractmethod
     def __call__(self, x):
@@ -103,12 +104,12 @@ class BandedJointEncoder(Encoder):
 
     def _get_sparse_matrix_indices(self, batch_size, sequence_length):
         num_variational_parameters = (2 * sequence_length - 1)
-        first_dim = np.repeat(np.arange(batch_size), self.encoding_size * num_variational_parameters)
-        second_dim = np.tile(np.repeat(np.arange(self.encoding_size), num_variational_parameters), batch_size)
+        first_dim = np.repeat(np.arange(batch_size), self.z_dim * num_variational_parameters)
+        second_dim = np.tile(np.repeat(np.arange(self.z_dim), num_variational_parameters), batch_size)
         third_dim = np.tile(np.concatenate([np.arange(sequence_length), np.arange(sequence_length - 1)]),
-                            batch_size * self.encoding_size)
+                            batch_size * self.z_dim)
         forth_dim = np.tile(np.concatenate([np.arange(sequence_length), np.arange(1, sequence_length)]),
-                            batch_size * self.encoding_size)
+                            batch_size * self.z_dim)
 
         return np.stack([first_dim, second_dim, third_dim, forth_dim])
 
@@ -118,13 +119,13 @@ class BandedJointEncoder(Encoder):
         # There are 2T parameters for each sequence. Taking only 2T -1
         precision_parameters = precision_parameters[:, :, :-1].reshape(-1)
         sparse_matrix = torch.sparse_coo_tensor(sparse_matrix_indices, precision_parameters,
-                                                (batch_size, self.encoding_size, sequence_length,
+                                                (batch_size, self.z_dim, sequence_length,
                                                  sequence_length))
         precision_tridiagonal = sparse_matrix.to_dense()
 
         batch_eye_matrix = torch.eye(sequence_length).reshape(1, 1, sequence_length, sequence_length).to(
             precision_parameters.device)
-        batch_eye_matrix = batch_eye_matrix.repeat(batch_size, self.encoding_size, 1, 1)
+        batch_eye_matrix = batch_eye_matrix.repeat(batch_size, self.z_dim, 1, 1)
 
         precision_tridiagonal += batch_eye_matrix
         # inverse of precision in covariance, precision_tridiagonal is upper tridiagonal
@@ -138,12 +139,12 @@ class BandedJointEncoder(Encoder):
     def __call__(self, statistics):
         batch_size = statistics.shape[0]
         # statistics = torch.permute(statistics, dims=(0, 2, 1))
-        mu = statistics[:, :self.encoding_size]
-        precision_parameters = statistics[:, self.encoding_size:]
+        mu = statistics[:, :self.z_dim]
+        precision_parameters = statistics[:, self.z_dim:]
 
         if self.precision_activation:
             precision_parameters = self.precision_activation(precision_parameters)
-        precision_parameters = precision_parameters.reshape(batch_size, self.encoding_size, 2 * self.z_dim_time_length)
+        precision_parameters = precision_parameters.reshape(batch_size, self.z_dim, 2 * self.z_dim_time_length)
 
         covariance_upper_tridiagonal = self._get_covariance_matrix(precision_parameters, batch_size,
                                                                    self.z_dim_time_length)
@@ -858,3 +859,4 @@ class InceptionEncoder(Encoder):
             x = F.relu(x + residual)
         x = self.last_block(x)
         return x
+

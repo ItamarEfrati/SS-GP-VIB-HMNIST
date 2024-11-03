@@ -2,7 +2,7 @@ import math
 import random
 import numpy as np
 
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, TensorDataset
 import pytorch_lightning as pl
 
 
@@ -276,15 +276,24 @@ class SemiDataModule(DataModuleBase):
         y_train = np.array([self.train_set[i][-1] for i in indices], dtype=np.int64)
         self.labeled_indices, self.unlabeled_indices = split_train(y_train,
                                                                    self.num_labeled,
-                                                                   self.n_classes)
+                                                                   self.n_classes,
+                                                                   seed=self.validation_split_seed)
         if self.is_ssl:
             train_list = [Subset(self.train_set, self.labeled_indices), Subset(self.train_set, self.unlabeled_indices)]
+            self.train_set = CustomSemiDataset(train_list, self.is_ssl)
         else:
-            train_list = [Subset(self.train_set, indices)]
-        self.train_set = CustomSemiDataset(train_list, self.is_ssl)
+            features, labels = self.train_set.tensors  # Unpack the original tensors
+
+            # Indexing the tensors using the labeled indices
+            features_labeled = features[self.labeled_indices]
+            labels_labeled = labels[self.labeled_indices]
+
+            # Create a new TensorDataset with the indexed tensors
+            self.train_set = TensorDataset(features_labeled, labels_labeled)
 
     def train_dataloader(self):
-        self.train_set.construct_map_index()
+        if self.is_ssl:
+            self.train_set.construct_map_index()
 
         return DataLoader(
             self.train_set,
@@ -292,5 +301,5 @@ class SemiDataModule(DataModuleBase):
             shuffle=True,
             num_workers=self.num_workers,
             pin_memory=True,
-            drop_last=True,
+            drop_last=False,
         )

@@ -8,7 +8,7 @@ defaults:
   - hydra: default
   - debug:
   - paths: default
-  - hparams_search:
+  - hparams_search: tsc/ss_gp_vib_reconstruct
   - metrics: tsc
   - extras: default
 
@@ -28,5 +28,5 @@ model_name: ${model.name}
 num_runs: 1
 size:
 num_labeled:
-suffix: _debug2
+suffix: ._2
 
