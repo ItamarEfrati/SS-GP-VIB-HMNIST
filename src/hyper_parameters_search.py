@@ -33,7 +33,7 @@ def run_script(command):
 
 
 # Main execution
-def main():
+def search_hyper_parameters():
     max_concurrent = 5  # Limit the number of concurrent processes
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_concurrent) as executor:
@@ -51,4 +51,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    search_hyper_parameters()

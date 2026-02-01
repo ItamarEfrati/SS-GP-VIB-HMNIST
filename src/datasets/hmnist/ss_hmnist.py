@@ -33,7 +33,7 @@ class SemiSupervisedHMnist(SemiDataModule):
             num_labeled,
             num_val,
             validation_split_seed,
-            is_ssl
+            is_ssl,
         )
         self.n_classes = 10
         self.save_hyperparameters()
@@ -60,10 +60,15 @@ class SemiSupervisedHMnist(SemiDataModule):
         # missing and mask, 1 is an evidence for missing data, True is observed
 
         data_name_format = "x_{}_miss" if self.hparams.is_data_missing else 'x_{}_full'
+        mask_format = "m_{}_miss"
 
         train_tensors = [tensor(data[data_name_format.format('train')])[:self.hparams.num_val]]
         val_tensors = [tensor(data[data_name_format.format('train')])[self.hparams.num_val:]]
         test_tensors = [tensor(data[data_name_format.format('test')])]
+
+        train_tensors.append(tensor(data[mask_format.format('train')])[:self.hparams.num_val])
+        val_tensors.append(tensor(data[mask_format.format('train')])[self.hparams.num_val:])
+        test_tensors.append(tensor(data[mask_format.format('test')]))
 
         train_tensors.append(tensor(data['y_train'])[:self.hparams.num_val])
         val_tensors.append(tensor(data['y_train'])[self.hparams.num_val:])
@@ -80,8 +85,8 @@ if __name__ == '__main__':
                              file_name='hmnist_mnar.npz',
                              batch_size=64,
                              num_workers=2,
-                             is_data_missing=False,
-                             num_labeled=100,
+                             is_data_missing=True,
+                             num_labeled=0.1,
                              num_val=5000,
                              validation_split_seed=42,
                              is_ssl=True)

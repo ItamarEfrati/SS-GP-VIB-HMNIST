@@ -88,10 +88,16 @@ class Subset(Dataset):
         self.transform = transform
 
     def __getitem__(self, idx):
-        data, label = self.dataset[self.indices[idx]]
-        if self.transform is not None:
-            data = self.transform(data)
-        return data, label
+        if len(self.dataset[self.indices[idx]]) == 3:
+            data, mask, label = self.dataset[self.indices[idx]]
+            if self.transform is not None:
+                data = self.transform(data)
+            return data, mask, label
+        else:
+            data, label = self.dataset[self.indices[idx]]
+            if self.transform is not None:
+                data = self.transform(data)
+            return data, label
 
     def __len__(self):
         return len(self.indices)
@@ -162,6 +168,7 @@ class CustomSemiDataset(Dataset):
 class DataModuleBase(pl.LightningDataModule):
     labeled_indices: ...
     unlabeled_indices: ...
+    unlabeled_mask_indices: ...
     val_indices: ...
 
     def __init__(self, data_root, num_workers, batch_size, num_labeled, num_val):
@@ -174,7 +181,6 @@ class DataModuleBase(pl.LightningDataModule):
         self.train_set = None
         self.val_set = None
         self.test_set = None
-
         self.num_workers = num_workers
 
     def train_dataloader(self):
@@ -254,24 +260,13 @@ class SemiDataModule(DataModuleBase):
             num_labeled,
             num_val,
             validation_split_seed,
-            is_ssl
+            is_ssl,
     ):
         super(SemiDataModule, self).__init__(data_root, num_workers, batch_size, num_labeled, num_val)
         self.is_ssl = is_ssl
         self.validation_split_seed = validation_split_seed
 
     def setup(self, stage=None):
-        # prepare train and val dataset, and split the train dataset
-        # into labeled and unlabeled groups.
-        assert (
-                self.train_set is not None
-        ), "Should create self.train_set in self.setup()"
-
-        assert (
-            any([not self.is_ssl,
-                 self.is_ssl and self.num_labeled < 1])), \
-            f'SSL should have unlabeled data used ratio less than 1 for num_labeled'
-
         indices = np.arange(len(self.train_set))
         y_train = np.array([self.train_set[i][-1] for i in indices], dtype=np.int64)
         self.labeled_indices, self.unlabeled_indices = split_train(y_train,

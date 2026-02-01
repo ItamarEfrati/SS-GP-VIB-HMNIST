@@ -1,9 +1,9 @@
 defaults:
   - _self_
-  - datamodule: har/ssl_har
-  - model: har/ss_gpvib_e_inception_d_flatten
+  - datamodule:
+  - model:
   - trainer: gpu
-  - logger: wandb
+  - logger:
   - callbacks: default
   - hydra: default
   - debug:

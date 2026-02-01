@@ -12,14 +12,13 @@ defaults:
   - extras: default
 
 seed:
-mode: debug
+mode: eval
 
-# evaluate on test set, using best model weights achieved during training
-# lightning chooses best weights based on metric specified in checkpoint callback
-ckpt_path: # C:\Developments\GP-VIB\logs\experiment\multiruns\physionet_2012\gpvib_e_multi_cnn2d_d_cnn1d\2022-12-01_22-06-56\runs\92\checkpoints\epoch_075.ckpt
+ckpt_path:
 
 # name of the run, should be used along with experiment mode
 datamodule_name: ss_hmnist
 model_name: ss_gpvib_e_cnn1d_dl_flatten
+size: ssl_0.5
 
 
