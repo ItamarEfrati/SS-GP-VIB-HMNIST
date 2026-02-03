@@ -1,4 +1,4 @@
-# GPredicting Chronic Pain States from Smartphone-Derived Digital Biomarkers Using Semi-Supervised GP-VIB
+# Predicting Chronic Pain States from Smartphone-Derived Digital Biomarkers Using Semi-Supervised GP-VIB
 
 This repository contains the code to **reproduce the experiments from a paper currently under review**, titled:
 
