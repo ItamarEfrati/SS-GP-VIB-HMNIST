@@ -10,9 +10,6 @@ model_checkpoint:
   auto_insert_metric_name: False
   save_on_train_epoch_end: False # if monitor train metric
 
-#plot:
-#  _target_: src.callbacks.ImagePlot
-
 early_stopping:
   _target_: pytorch_lightning.callbacks.EarlyStopping
   monitor: "val_ACC" # name of the logged metric which determines when model is improving
@@ -20,26 +17,3 @@ early_stopping:
   patience: 20 # how many validation epochs of not improving until training stops
   min_delta: 0.001 # minimum change in the monitored metric needed to qualify as an improvement
   check_on_train_epoch_end: False # whether to run early stopping at the end of the training epoch
-
-#log_latent_embeddings:
-#  _target_: src.callbacks.PlotLatentSpace
-
-#log_reconstruct:
-#  _target_: src.callbacks.PlotReconstruct
-
-#log_preds:
-#  _target_: src.callbacks.ClassificationHistogramCallback
-
-#
-#init_parameters:
-#  _target_: src.callbacks.ParameterInitialization
-#  init_method: xavier
-
-#log_evaluation_metrices:
-#    _target_: src.callbacks.LogEvaluationMetrics
-#    num_classes: ${model.num_classes}
-
-#warmup_start:
-#  _target_: src.callbacks.WarmupStart
-#  lr: ${model.optimizer.lr}
-#  warmup_steps: 100

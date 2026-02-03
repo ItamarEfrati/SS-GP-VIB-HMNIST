@@ -1,4 +1,4 @@
-name: ss_gp-vib
+name: ss-gp-vib
 _target_: src.models.variational.ss_gp_vib.SemiSupervisedGPVIB
 
 defaults:

@@ -69,7 +69,7 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
 
     def run_forward_step(self, batch, is_sample, stage):
         is_train = stage is 'train'
-        x, y, x_unlabeled = self.get_x_y(batch, is_train)
+        x, y, x_unlabeled, x_mask = self.get_x_y(batch, is_train)
         if is_train and self.hparams.is_ssl:
             x_temp = torch.concat([x, x_unlabeled])
             x_reconstruction_origin = x_unlabeled
@@ -81,10 +81,10 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
         kl = self.compute_kl_divergence(pz_x)
         label_log_likelihood = self.compute_log_likelihood(qy_z, y)
 
-        data_log_likelihood = self.compute_log_likelihood(px_z, x_reconstruction_origin, is_multinomial=False)
+        data_log_likelihood = self.compute_log_likelihood(px_z, x_reconstruction_origin, is_multinomial=False,
+                                                          mask=x_mask)
         data_log_likelihood = data_log_likelihood.mean(dim=[1, 2])
         batch_size = data_log_likelihood.shape[0]
-        triplet_loss = 0
         if self.hparams.is_vae:
             kl = kl * self.data_beta
         elif self.hparams.is_ssl and is_train:
@@ -96,8 +96,7 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
             kl = kl * self.beta
 
         log_values = {'mean_label_negative_log_likelihood_loss': (-label_log_likelihood).mean(),
-                      'mean_data_negative_log_likelihood_loss': -data_log_likelihood.mean(),
-                      'triplet_loss': triplet_loss}
+                      'mean_data_negative_log_likelihood_loss': -data_log_likelihood.mean()}
 
         reconstruction_error = self.hparams.reconstruction_coef * (data_kl - data_log_likelihood).mean()
         entropy = self.hparams.entropy_coef * qy_z.entropy().mean()
@@ -123,16 +122,17 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
     def get_x_y(self, batch, is_train=True):
         if is_train and self.hparams.is_ssl:
             labeled_data, unlabeled_data = batch[0], batch[1]
-            x_unlabeled = unlabeled_data[0]
-            x, y = labeled_data[0], labeled_data[1]
+            x_unlabeled, x_mask = unlabeled_data[0], unlabeled_data[1]
+            x_unlabeled = torch.flatten(x_unlabeled, 1)
+            x_mask = torch.flatten(x_mask, 1)
+            x, y = labeled_data[0], labeled_data[-1]
         else:
-            x_unlabeled = None
+            x_unlabeled, x_mask = None, None
             x, y = batch[0], batch[1]
 
         # the model is expecting (B, input_dim)
         x = torch.flatten(x, 1)
-        x_unlabeled = torch.flatten(x_unlabeled, 1)
-        return x, y, x_unlabeled
+        return x, y, x_unlabeled, x_mask
 
     def get_y_pred(self, qy_z):
         probabilities = qy_z.mean if not self.hparams.is_ensemble else qy_z.mean.mean(1)
@@ -142,14 +142,22 @@ class SemiSupervisedVIB(VIB, pl.LightningModule):
 
     # region Loss computations
 
-    def compute_log_likelihood(self, prob, target, class_weight=None, is_multinomial=True):
+    def compute_log_likelihood(self, prob, target, mask=None, class_weight=None, is_multinomial=True):
         if class_weight is None:
             if is_multinomial:
-                target = torch.nn.functional.one_hot(target.long(), num_classes=prob.event_shape[-1])
+                target = torch.nn.functional.one_hot(
+                    target.long(), num_classes=prob.event_shape[-1]
+                )
             log_likelihood = prob.log_prob(target)
         else:
             nll = torch.nn.NLLLoss(reduction='none', weight=class_weight)
             log_likelihood = -nll(prob.logits, target.long())
+
+        if mask is not None:
+            # ensure float + broadcast-safe
+            mask = mask.float()
+            log_likelihood = log_likelihood * mask
+
         return log_likelihood
 
     def on_validation_epoch_end(self):

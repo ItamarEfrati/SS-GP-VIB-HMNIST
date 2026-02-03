@@ -10,6 +10,9 @@ from omegaconf import DictConfig
 
 # project root setup
 root = pyrootutils.setup_root(__file__, dotenv=True, pythonpath=True)
+os.chdir(root)
+os.makedirs(os.path.join(root, 'results'), exist_ok=True)
+os.makedirs(os.path.join(root, 'logs'), exist_ok=True)
 
 
 def _get_results_filename(cfg: DictConfig) -> str:
@@ -17,13 +20,14 @@ def _get_results_filename(cfg: DictConfig) -> str:
     Build CSV filename based on dataset type and num_label.
     """
     datamodule = cfg.datamodule._target_ if "_target_" in cfg.datamodule else str(cfg.datamodule)
-
+    suffix = '_with_data_missing' if cfg.datamodule.is_data_missing else ''
     # full dataset
     if "hmnist/hmnist" in datamodule:
-        name = "full"
+        name = "full" + suffix
     else:
-        num_label = cfg.datamodule.num_label
-        name = f"ss_{num_label}"
+        prefix = 'full_' if cfg.size.startswith('full') else 'ss_'
+        num_label = cfg.datamodule.num_labeled
+        name = prefix + f'{num_label}' + suffix
 
     return f"results_{name}.csv"
 
@@ -31,9 +35,9 @@ def _get_results_filename(cfg: DictConfig) -> str:
 @hydra.main(version_base="1.2", config_path=os.path.join(root, "configs"), config_name="eval.yaml")
 def main(cfg: DictConfig) -> None:
     from src.tasks.eval_task import evaluate
-
+    _get_results_filename(cfg)
     metric_dict = {}
-    num_runs = 1 if cfg.get("seed") else 1
+    num_runs = 1 if cfg.get("seed") else 2
 
     for i in range(num_runs):
         metric_dict[i] = evaluate(cfg.copy())

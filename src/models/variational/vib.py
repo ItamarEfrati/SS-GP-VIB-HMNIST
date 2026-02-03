@@ -85,8 +85,7 @@ class VIB(AbstractVIB, pl.LightningModule):
                 'latent': pz_x.mean}
 
     def step(self, batch, stage):
-        is_sample = any([stage is 'train',
-                         all([stage is not 'train', self.hparams.sample_during_evaluation])])
+        is_sample = any([stage is 'train', all([stage is not 'train', self.hparams.sample_during_evaluation])])
         forward_outputs = self.run_forward_step(batch, is_sample, stage)
         log_dict = forward_outputs.pop('log')
         forward_outputs['loss'] = log_dict['loss']

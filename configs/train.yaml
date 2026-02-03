@@ -3,17 +3,17 @@ defaults:
   - datamodule:
   - model:
   - trainer: gpu
-  - logger:
+  - logger: tensorboard
   - callbacks: default
   - hydra: default
   - debug:
   - paths: default
   - hparams_search:
-  - metrics: tsc
+  - metrics: default
   - extras: default
 
 seed: 42
-mode: debug
+mode: train
 run_test: True
 optimized_metric: ${metrics.optimize}
 
@@ -22,9 +22,8 @@ optimized_metric: ${metrics.optimize}
 ckpt_path: null # path to checkpoint model
 
 # name of the run, should be used along with experiment mode
-datamodule_name: har
+datamodule_name:
 model_name: ${model.name}
-size: ssl_0.5
-num_labeled: 0.5
-suffix: _debug
+size:
+num_labeled:
 

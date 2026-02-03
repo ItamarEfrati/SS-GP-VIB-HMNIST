@@ -277,14 +277,13 @@ class SemiDataModule(DataModuleBase):
             train_list = [Subset(self.train_set, self.labeled_indices), Subset(self.train_set, self.unlabeled_indices)]
             self.train_set = CustomSemiDataset(train_list, self.is_ssl)
         else:
-            features, labels = self.train_set.tensors  # Unpack the original tensors
+            tensors = self.train_set.tensors  # tuple of N tensors
 
-            # Indexing the tensors using the labeled indices
-            features_labeled = features[self.labeled_indices]
-            labels_labeled = labels[self.labeled_indices]
+            # Index every tensor consistently
+            indexed_tensors = tuple(t[self.labeled_indices] for t in tensors)
 
-            # Create a new TensorDataset with the indexed tensors
-            self.train_set = TensorDataset(features_labeled, labels_labeled)
+            # Rebuild the dataset
+            self.train_set = TensorDataset(*indexed_tensors)
 
     def train_dataloader(self):
         if self.is_ssl:

@@ -3,24 +3,35 @@ import subprocess
 
 # List of scripts to run
 scripts = [
-    "python src/train.py datamodule=hmnist/ss_hmnist size=ss_0.01 num_labeled=0.01"
-    " model=hmnist/ss_gpvib_e_cnn1d_dl_flatten hparams_search=hmnist/ss_gp_vib",
-    "python src/train.py datamodule=hmnist/ss_hmnist size=ss_0.02 num_labeled=0.02"
-    " model=hmnist/ss_gpvib_e_cnn1d_dl_flatten hparams_search=hmnist/ss_gp_vib",
-    "python src/train.py datamodule=hmnist/ss_hmnist size=ss_0.1 num_labeled=0.1 "
-    " model=hmnist/ss_gpvib_e_cnn1d_dl_flatten hparams_search=hmnist/ss_gp_vib",
-    "python src/train.py datamodule=hmnist/ss_hmnist size=ss_0.2 num_labeled=0.2 "
-    " model=hmnist/ss_gpvib_e_cnn1d_dl_flatten hparams_search=hmnist/ss_gp_vib",
-    "python src/train.py datamodule=hmnist/ss_hmnist size=full_0.01 num_labeled=0.01"
-    " model=hmnist/gpvib_e_cnn1d_dl_flatten hparams_search=hmnist/gp_vib",
-    "python src/train.py datamodule=hmnist/ss_hmnist size=full_0.02 num_labeled=0.02"
-    " model=hmnist/gpvib_e_cnn1d_dl_flatten hparams_search=hmnist/gp_vib",
-    "python src/train.py datamodule=hmnist/ss_hmnist size=full_0.1 num_labeled=0.1"
-    " model=hmnist/gpvib_e_cnn1d_dl_flatten hparams_search=hmnist/gp_vib",
-    "python src/train.py datamodule=hmnist/ss_hmnist size=full_0.2 num_labeled=0.2"
-    " model=hmnist/gpvib_e_cnn1d_dl_flatten hparams_search=hmnist/gp_vib",
-    "python src/train.py datamodule=hmnist/hmnist size=full"
-    " model=hmnist/gpvib_e_cnn1d_dl_flatten hparams_search=hmnist/gp_vib",
+    # ss_hmnist semi supervised
+    # "python src/train.py datamodule=ss_hmnist size=ss_0.01 num_labeled=0.01 model=ss-gp-vib hparams_search=ss-gp-vib datamodule.is_data_missing=False",
+    # "python src/train.py datamodule=ss_hmnist size=ss_0.01 num_labeled=0.01 model=ss-gp-vib hparams_search=ss-gp-vib datamodule.is_data_missing=True",
+
+    # "python src/train.py datamodule=ss_hmnist size=ss_0.02 num_labeled=0.02 model=ss-gp-vib hparams_search=ss-gp-vib datamodule.is_data_missing=False",
+    # "python src/train.py datamodule=ss_hmnist size=ss_0.02 num_labeled=0.02 model=ss-gp-vib hparams_search=ss-gp-vib datamodule.is_data_missing=True",
+    #
+    # "python src/train.py datamodule=ss_hmnist size=ss_0.1 num_labeled=0.1 model=ss-gp-vib hparams_search=ss-gp-vib datamodule.is_data_missing=False",
+    # "python src/train.py datamodule=ss_hmnist size=ss_0.1 num_labeled=0.1 model=ss-gp-vib hparams_search=ss-gp-vib datamodule.is_data_missing=True",
+    #
+    # "python src/train.py datamodule=ss_hmnist size=ss_0.2 num_labeled=0.2 model=ss-gp-vib hparams_search=ss-gp-vib datamodule.is_data_missing=False",
+    # "python src/train.py datamodule=ss_hmnist size=ss_0.2 num_labeled=0.2 model=ss-gp-vib hparams_search=ss-gp-vib datamodule.is_data_missing=True",
+
+    # ss_hmnist full sizes (gp-vib)
+    # "python src/train.py datamodule=ss_hmnist size=full_0.01 num_labeled=0.01 model=gp-vib hparams_search=gp-vib datamodule.is_data_missing=False",
+    # "python src/train.py datamodule=ss_hmnist size=full_0.01 num_labeled=0.01 model=gp-vib hparams_search=gp-vib datamodule.is_data_missing=True",
+
+    "python src/train.py datamodule=ss_hmnist size=full_0.02 num_labeled=0.02 model=gp-vib hparams_search=gp-vib datamodule.is_data_missing=False",
+    "python src/train.py datamodule=ss_hmnist size=full_0.02 num_labeled=0.02 model=gp-vib hparams_search=gp-vib datamodule.is_data_missing=True",
+
+    # "python src/train.py datamodule=ss_hmnist size=full_0.1 num_labeled=0.1 model=gp-vib hparams_search=gp-vib datamodule.is_data_missing=False",
+    # "python src/train.py datamodule=ss_hmnist size=full_0.1 num_labeled=0.1 model=gp-vib hparams_search=gp-vib datamodule.is_data_missing=True",
+
+    "python src/train.py datamodule=ss_hmnist size=full_0.2 num_labeled=0.2 model=gp-vib hparams_search=gp-vib datamodule.is_data_missing=False",
+    "python src/train.py datamodule=ss_hmnist size=full_0.2 num_labeled=0.2 model=gp-vib hparams_search=gp-vib datamodule.is_data_missing=True",
+
+    # hmnist full size
+    # "python src/train.py datamodule=hmnist size=full model=gp-vib hparams_search=gp-vib datamodule.is_data_missing=False",
+    # "python src/train.py datamodule=hmnist size=full model=gp-vib hparams_search=gp-vib datamodule.is_data_missing=True",
 ]
 
 
@@ -34,7 +45,7 @@ def run_script(command):
 
 # Main execution
 def search_hyper_parameters():
-    max_concurrent = 5  # Limit the number of concurrent processes
+    max_concurrent = 2  # Limit the number of concurrent processes
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_concurrent) as executor:
         futures = {executor.submit(run_script, script): script for script in scripts}

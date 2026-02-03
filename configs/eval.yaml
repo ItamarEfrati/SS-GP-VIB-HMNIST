@@ -1,14 +1,14 @@
 defaults:
   - _self_
-  - datamodule: hmnist/ss_hmnist
-  - model: hmnist/ss_gpvib_e_cnn1d_dl_flatten
+  - datamodule:
+  - model:
   - trainer: gpu
   - logger: tensorboard
   - callbacks: default
   - hydra: default
   - debug:
   - paths: default
-  - metrics: vib_eval
+  - metrics: default
   - extras: default
 
 seed:
@@ -17,8 +17,9 @@ mode: eval
 ckpt_path:
 
 # name of the run, should be used along with experiment mode
-datamodule_name: ss_hmnist
-model_name: ss_gpvib_e_cnn1d_dl_flatten
-size: ssl_0.5
+datamodule_name:
+model_name: ${model.name}
+size:
+num_labeled:
 
 

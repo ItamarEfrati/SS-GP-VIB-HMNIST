@@ -3,11 +3,11 @@ _target_: src.datasets.hmnist.ss_hmnist.SemiSupervisedHMnist
 download_dir: ${paths.data_dir}/HMNIST
 download_url: https://www.dropbox.com/s/xzhelx89bzpkkvq/hmnist_mnar.npz?dl=1
 file_name: hmnist_mnar.npz
-batch_size: 128
+batch_size: 256
 num_workers: 2
 num_labeled: ${num_labeled}
 num_val: 55000
 is_data_missing: False
 validation_split_seed: 42
 is_ssl: ${model.is_ssl}
-dataset_name: hmnist
+dataset_name: ss_hmnist

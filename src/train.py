@@ -13,6 +13,9 @@ from omegaconf import DictConfig
 # adds root dir to the PYTHONPATH (so this file can be run from any place)
 # https://github.com/ashleve/pyrootutils
 root = pyrootutils.setup_root(__file__, dotenv=True, pythonpath=True)
+os.chdir(root)
+os.makedirs(os.path.join(root, 'results'), exist_ok=True)
+os.makedirs(os.path.join(root, 'logs'), exist_ok=True)
 
 
 @hydra.main(version_base="1.2", config_path=os.path.join(root, "configs"), config_name="train.yaml")
